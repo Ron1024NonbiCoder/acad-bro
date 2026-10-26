@@ -61,7 +61,14 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - `storage.js`: local-first, using localStorage key `acadbro-data-v1`, a DIRTY marker, a BASE (cloud `updatedAt`), and retry backoff of 2/5/15/30/60s.
 - `swipe-entry.js`: right = complete, left = action tray. `long-press.js`: hold = edit logged values.
 - Tests: `node scripts/test-*.mjs` (no framework). Needs Node ≥ 22.7 (ESM `.js` without package.json).
-- Dev server: `node scripts/serve.mjs` (PORT env, default 5180). `?page=prod&demo=1` shows a demo swipe row.
+- Dev server: `node scripts/serve.mjs` (PORT env, default 5180). `?page=prod` deep-links a page.
+- Task logic: `tasks-core.js` (pure, node-tested), `tasks-actions.js` (one `commit()` = save + re-render + toast with Undo → Redo), `page-tasks.js` (render).
+- `activeDays(projectId, tasks, completions, endISO, n, area)` → `[{date, count, active}]`; count = distinct tasks with any completion (task or subtask) that day.
+- "Overdue" = one-off, not done, due before the **selected** day (not before today).
+- Due and Repeat are mutually exclusive on a task: setting one clears the other (said in the toast; can be undone).
+- Deleting a task/project also deletes its completions; Undo restores them.
+- Editors: rename/note/add commit on blur + Enter, Esc cancels; Due/Repeat/Move/done-date panels use explicit Save/Cancel.
+- Tray buttons are 40px (7 × 52px doesn't fit 360px phones).
 - `storage.js` reports save/size errors via `hooks` (testable in node). Corrupt local data is copied to `acadbro-data-corrupt` + warning toast. Import = preview sheet → confirm, backup in `acadbro-import-backup`, Undo.
 - Device-local settings (week start, haptics) live in `settings.js` and are never synced.
 
@@ -101,8 +108,10 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | Status | Item |
 |---|---|
 | done 2026-10-26 | M1 shell & infrastructure (tests 10+13 pass; serve on PORT, default 5180) |
-| next | M2 projects & tasks CRUD + view switch |
-| pending | M3–M6 |
+| done 2026-10-26 | M2 projects/tasks/subtasks CRUD + views, and M3 recurrence (tests 13+21+10 pass; headless smoke at 390px passes, `scratchpad/smoke.mjs`) |
+| next | M4 review board (still a grey placeholder) + per-project heatmaps; reuse `activeDays()` from tasks-core.js |
+| pending | M5–M6 |
+| pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
 | pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
 | pending | PNG icons (iOS ignores SVG apple-touch-icon) |
 
@@ -114,9 +123,14 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 
 ## 7. Serious bugs
 
-_None yet._
+| Status | Bug |
+|---|---|
+| open | While an editor is open, tapping another button commits on blur and re-renders, so that first tap can be swallowed. (From the builder's report; not reproduced on a device.) |
+| open (minor) | Stacked toasts (top-right) can cover the Manage sheet's close button for a few seconds. Esc, scrim tap or drag-down still close it. |
+| fixed 2026-10-26 | Review board header "LAST 7 DAYS" overlapped the first day column. Label is now "7 days" and the column is 64px. |
 
 ## 8. Changelog
 
 - 2026-10-26: Project started; decisions §2 recorded.
+- 2026-10-26: M2+M3 built: projects/tasks/subtasks CRUD, Grouped/Flat views, Show completed, swipe tray, Manage sheet, weekday/monthly recurrence, backfill via hold on done badge.
 - 2026-10-26: M1 shell built (index/styles/sw/manifest, state, storage, toast, day strip, swipe/long-press ports, settings + JSON import/export).

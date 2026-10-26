@@ -389,7 +389,7 @@ h1, h2, h3, p { margin: 0; }
 }
 .rb-row {
   display: grid;
-  grid-template-columns: 56px repeat(7, 1fr);
+  grid-template-columns: 64px repeat(7, 1fr);
   align-items: center;
   justify-items: center;
   min-height: 26px;
@@ -461,7 +461,7 @@ body.page-hobby .rb-hobby .rb-name { color: var(--orange); }
    has no background of its own (--card-2 is translucent: a filled row on a
    filled card read as two stacked boxes). touch-action: pan-y keeps the page
    scrolling vertically while the horizontal drag is ours. */
-.demo-entry-row {
+.task-row {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -505,6 +505,7 @@ body.page-hobby .rb-hobby .rb-name { color: var(--orange); }
 .entry-card.tray-3 { --tray-w: 172px; }
 .entry-card.tray-4 { --tray-w: 228px; }
 .entry-card.tray-5 { --tray-w: 284px; }
+.entry-card.tray-7 { --tray-w: 312px; } /* seven 40px buttons (swipe-entry.js trayWidth) */
 .entry-card.has-tray { transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
 .entry-card.has-tray.is-tray-open { transform: translateX(calc(-1 * var(--tray-w))); }
 .swipe-tray {
@@ -865,3 +866,123 @@ body.page-hobby .bottom-nav-item[data-page="hobby"] .bottom-nav-dot { opacity: 1
   #app { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   body.view-settings #app { padding-bottom: 0; }
 }
+
+/* =====================================================================
+   M2: tasks, projects, in-place editors
+   ===================================================================== */
+
+/* ---------- list toolbar + Add ---------- */
+.list-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 2px; }
+.list-toolbar .text-btn { margin-left: auto; }
+.chip-btn {
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.chip-btn:hover { color: var(--text); }
+.chip-btn.is-on { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.add-row { margin: 8px 0 0; }
+.add-btn { width: 100%; min-height: 40px; }
+.add-form { padding: 10px 12px 12px; border-radius: var(--radius-md); background: var(--card-2); }
+.add-opts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.add-opts select { flex: 1 1 140px; min-width: 0; }
+.area-chip.area-living.is-on { background: var(--teal-soft); color: var(--teal); }
+.area-chip.area-prod.is-on { background: var(--sky-soft); color: var(--sky); }
+.area-chip.area-hobby.is-on { background: var(--orange-soft); color: var(--orange); }
+
+/* ---------- in-place text fields ---------- */
+.name-input, .note-input { width: 100%; min-width: 0; }
+.name-input { font-weight: 600; }
+.note-input { resize: vertical; min-height: 64px; border: 2px solid var(--border-strong); border-radius: var(--radius-sm); padding: 8px; line-height: 1.4; }
+.note-input:focus { border-color: var(--field-focus); }
+.editor-hint { margin-top: 4px; font-size: var(--fs-caption); color: var(--text-muted); }
+.text-btn.danger-text { color: var(--red); }
+.btn.danger { background: var(--red-soft); }
+
+/* ---------- task cards ---------- */
+.task-row { cursor: pointer; }
+.task-card .entry-main { min-width: 0; }
+.task-title { overflow-wrap: anywhere; }
+.task-card.is-done .task-title { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-muted); }
+.task-card.is-overdue, .task-card.is-high { border-color: var(--red-soft); }
+.entry-toggle.completed svg { width: 14px; height: 14px; }
+.entry-toggle.completed { --ring-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 2px; align-items: center; }
+.chip { font-size: var(--fs-caption); color: var(--text-secondary); white-space: nowrap; }
+.chip + .chip::before { content: '\00B7'; margin-right: 6px; color: var(--text-muted); }
+.chip.prio { font-weight: 800; letter-spacing: 0.02em; }
+.chip.prio-3, .chip.due.overdue { color: var(--red); font-weight: 700; }
+.chip.prio-2 { color: var(--orange); }
+.chip.proj { color: var(--accent); font-weight: 700; }
+.entry-card.tray-7 .tray-btn { font-size: 10px; gap: 3px; }
+.entry-card.tray-7 .tray-btn svg { width: 18px; height: 18px; }
+
+/* expanded body */
+.task-body { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-soft); }
+.task-note { font-size: var(--fs-sm); color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; margin: 2px 0 8px; cursor: pointer; }
+.task-note-edit { margin-bottom: 8px; }
+.subtask-list { list-style: none; margin: 0; padding: 0; }
+.subtask-row { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.sub-check {
+  width: 20px; height: 20px; min-width: 20px; padding: 0;
+  border-radius: 50%; border: 1.6px solid var(--ring-grey);
+  display: flex; align-items: center; justify-content: center;
+}
+.sub-check.completed { background: var(--accent); border-color: var(--accent); }
+.sub-check svg { width: 12px; height: 12px; }
+.sub-title { flex: 1; min-width: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; cursor: text; }
+.subtask-row.is-done .sub-title { color: var(--text-muted); text-decoration: line-through; }
+.sub-del { color: var(--text-muted); width: 32px; height: 32px; font-size: var(--fs-caption); border-radius: 50%; }
+.sub-del:hover { color: var(--red); }
+.sub-add { font-size: var(--fs-sm); font-weight: 400; margin-top: 4px; }
+.task-body-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+/* inline panels (Due / Repeat / Move / Priority / done date) */
+.task-panel { margin-bottom: 10px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--card-2); }
+.panel-title { font-size: var(--fs-caption); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 8px; }
+.task-panel input[type="date"] { color-scheme: dark; }
+.task-panel .segmented { display: inline-flex; }
+.day-chip { min-width: 44px; padding: 4px 6px; }
+.field-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--fs-sm); color: var(--text-secondary); }
+.field-row select { flex: 1; min-width: 0; }
+.field-grid { display: flex; flex-direction: column; }
+.prio-btn.prio-3.is-on { background: var(--red-soft); color: var(--red); }
+.prio-btn.prio-2.is-on { background: var(--orange-soft); color: var(--orange); }
+
+/* ---------- project cards (grouped view) ---------- */
+.loose-list { margin-bottom: 8px; }
+.project-card { margin-top: 10px; padding: 8px 10px 10px; border-radius: var(--radius-md); background: var(--card-2); border: 1px solid var(--border-soft); }
+.project-card.is-folded { padding-bottom: 8px; }
+.project-head { display: flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.project-head .name-input { user-select: text; -webkit-user-select: text; flex: 1; }
+.chev { display: inline-block; width: 16px; color: var(--text-muted); transition: transform var(--dur-fast) ease; }
+.chev.is-folded { transform: rotate(-90deg); }
+.project-name { flex: 1; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+.project-count { font-size: var(--fs-caption); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pdots { display: inline-flex; gap: 4px; align-items: center; }
+.pdot { width: 7px; height: 7px; border-radius: 50%; background: var(--grey-dot); display: block; }
+.pdot.on { background: var(--area, var(--accent)); }
+.project-note { font-size: var(--fs-sm); color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; margin: 2px 0 6px 24px; }
+.project-card .entry-list { margin-top: 6px; }
+.empty-sub { color: var(--text-muted); font-size: var(--fs-sm); padding: 8px 4px; }
+
+/* ---------- Manage sheet ---------- */
+.manage-area { margin-bottom: 8px; }
+.manage-area .settings-group-label { margin-top: 8px; }
+.manage-row { padding: 10px 0; border-top: 1px solid var(--border-soft); }
+.manage-row.is-archived .manage-name { color: var(--text-muted); }
+.manage-name { font-weight: 700; overflow-wrap: anywhere; }
+.manage-meta { font-size: var(--fs-caption); color: var(--text-secondary); }
+.manage-actions { display: flex; flex-wrap: wrap; gap: 2px 8px; margin-top: 2px; }
+.manage-actions .text-btn { min-height: 34px; }
+.manage-note-edit { margin-top: 8px; }
+.confirm-box { margin-top: 8px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--red-area); font-size: var(--fs-sm); }
+.confirm-box .editor-actions { flex-wrap: wrap; }
+.add-project-btn { margin-top: 6px; }

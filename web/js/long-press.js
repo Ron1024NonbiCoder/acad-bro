@@ -12,16 +12,19 @@
    rows use the swipe gesture instead (swipe-entry.js). */
 
 import { tick } from './haptics.js';
-import { showToast } from './toast.js';
+import { openPanel, startProjectRename, startTaskRename } from './tasks-actions.js';
 
 var LONG_PRESS_MS = 550;
 var MOVE_THRESHOLD = 10; /* px of travel before a hold no longer counts as a press */
 var SUPPRESS_CLICK_MS = 400; /* trailing click after a fired long-press, ignored within this window */
 
 /* data-edit-action value -> the editor it opens, given the pressed element.
-   M1: one demo entry, reachable on the ?demo=1 row. M2 adds task/project edits. */
+   Hold a task title = rename; hold a done badge = change its done date
+   (backfill fix); hold a project header = rename it. */
 var EDIT_ACTIONS = {
-  'demo-rename': function (el) { showToast({ message: 'Demo: hold-to-edit fired for ' + el.dataset.entryId }); }
+  'task-rename': function (el) { startTaskRename(el.dataset.entryId); },
+  'completion-date': function (el) { openPanel('completion', el.dataset.entryId); },
+  'project-rename': function (el) { startProjectRename(el.dataset.projectId); }
 };
 
 var press = null;
@@ -50,6 +53,7 @@ function onUp(e) {
 export function onLongPressPointerDown(e) {
   if (e.button !== undefined && e.button !== 0) return;
   if (!e.target.closest) return;
+  if (e.target.closest('input, textarea, select')) return; /* holding inside a field selects text */
   var target = e.target.closest('[data-edit-action]');
   if (!target) return;
   clearPress();

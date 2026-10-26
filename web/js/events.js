@@ -10,6 +10,7 @@ import { settleStripScroll } from './day-strip.js';
 import { closeTray, consumeSwipeEntryClick, runTrayAction } from './swipe-entry.js';
 import { consumeLongPressClick } from './long-press.js';
 import { tickLanded, tickNav, tickOff } from './haptics.js';
+import { commitEditor, handleTaskAction, onDraftChange, onLimitedInput } from './tasks-actions.js';
 import { todayISO } from './utils.js';
 import {
   changeWeekStart, confirmImport, exportData, onImportFile, toggleHaptics
@@ -37,6 +38,9 @@ export function onAppClick(e) {
     if (wasOnOpenCard) return;
   }
   if (!target) return;
+  /* a click inside a text field / picker (placing the caret, opening a select)
+     must not trigger the row or header action that wraps it */
+  if (e.target.closest('input, textarea, select')) return;
   /* the trailing click of a fired long-press must not also do the tap thing */
   if (consumeLongPressClick()) return;
   var action = target.dataset.action;
@@ -53,11 +57,29 @@ export function onAppClick(e) {
     case 'export-data': exportData(); break;
     case 'confirm-import': confirmImport(); break;
     case 'tray-action': runTrayAction(target.dataset.tray, target.dataset.id); break;
-    default: break;
+    default: handleTaskAction(action, target.dataset); break;
   }
 }
 
 export function onKeyDown(e) {
+  var field = e.target && e.target.closest ? e.target.closest('[data-edit-input]') : null;
+  if (field && e.key === 'Enter' && !e.isComposing) {
+    /* Enter commits a one-line field (Add forms stay open for the next entry);
+       in a note, Enter is a newline and Ctrl/Cmd+Enter commits */
+    var multi = field.tagName === 'TEXTAREA';
+    if (!multi || e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      commitEditor(field, /^(add-task|add-project|add-subtask)$/.test(field.dataset.editInput));
+    }
+    return;
+  }
+  if (e.key === 'Escape' && field && field.dataset.editInput === 'add-subtask') {
+    field.dataset.committed = '1'; /* abandon what was typed; no toast needed, nothing was saved */
+    field.value = '';
+    field.blur();
+    e.preventDefault();
+    return;
+  }
   if (e.key === 'Escape') {
     if (closeTopLayer()) e.preventDefault();
     return;
@@ -69,9 +91,23 @@ export function onKeyDown(e) {
   }
 }
 
-/* The file input is the only change event the app listens for (M1) */
+/* Leaving an in-place field commits it (Enter does too). Moving focus to
+   another control of the same form (the project picker, the Add button) does
+   not: the form is not finished yet. */
+export function onFocusOut(e) {
+  var el = e.target;
+  if (!el || !el.matches || !el.matches('[data-edit-input]') || !el.isConnected) return;
+  var scope = el.closest('[data-edit-scope]');
+  if (scope && e.relatedTarget && scope.contains(e.relatedTarget)) return;
+  commitEditor(el, false);
+}
+export function onAppInput(e) {
+  if (e.target && e.target.dataset && e.target.dataset.limit) onLimitedInput(e.target);
+}
+
 export function onAppChange(e) {
   var t = e.target;
+  if (t && t.dataset && t.dataset.draft) { onDraftChange(t); return; }
   if (t && t.id === 'import-file') {
     var file = t.files && t.files[0];
     t.value = ''; /* picking the same file again must fire again */

@@ -2,7 +2,7 @@
    midnight rollover, and the first render. Module evaluation order guarantees
    storage.js has loaded local data before this runs. */
 
-import { onAppClick, onAppChange, onKeyDown, onAppScroll } from './events.js';
+import { onAppClick, onAppChange, onAppInput, onFocusOut, onKeyDown, onAppScroll } from './events.js';
 import { onLongPressPointerDown } from './long-press.js';
 import { onSwipeEntryPointerDown } from './swipe-entry.js';
 import { onPopState, onSheetPointerDown, onSheetPointerMove, onSheetPointerUp } from './layers.js';
@@ -64,6 +64,8 @@ function init() {
   window.addEventListener('popstate', onPopState);
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('change', onAppChange);
+  document.addEventListener('input', onAppInput);
+  document.addEventListener('focusout', onFocusOut);
   document.addEventListener('scroll', onAppScroll, true);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) checkDayRollover(); });
   scheduleMidnight();

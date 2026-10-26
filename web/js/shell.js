@@ -12,19 +12,15 @@ import { renderDayStrip, parkStrip } from './day-strip.js';
 import { renderSettingsView, importSheetHtml } from './page-settings.js';
 import { syncSheet, syncBackStack, setLayerCloser } from './layers.js';
 import { tickNav } from './haptics.js';
-import { trayWidth, closeTray } from './swipe-entry.js';
+import { closeTray } from './swipe-entry.js';
+import { renderTaskArea, manageSheetHtml } from './page-tasks.js';
+import { cancelEditing, postRenderFocus } from './tasks-actions.js';
 
 /* Page order is state.js PAGE_IDS: the top tabs, the phone bottom bar
    (index.html) and body.page-* all follow it. */
 export function pageLabel(id) {
   return id === 'all' ? 'All' : (DB.areaLabels[id] || id);
 }
-
-/* ?demo=1 renders one fake swipeable row (no data) so the gestures can be tried
-   by hand before M2 has real rows. */
-var DEMO = (function () {
-  try { return /[?&]demo=1\b/.test(location.search); } catch (err) { return false; }
-})();
 
 /* ================= pieces ================= */
 export function renderPageTabs() {
@@ -47,7 +43,7 @@ function renderReviewBoard() {
     return '<div class="rb-row rb-' + id + '"><span class="rb-name">' + escapeHtml(pageLabel(id)) + '</span>' + dots + '</div>';
   }).join('');
   return '<section class="review-board" aria-label="Last 7 days">'
-    + '<div class="rb-row rb-head"><span class="section-sub">Last 7 days</span>' + heads + '</div>'
+    + '<div class="rb-row rb-head"><span class="section-sub">7 days</span>' + heads + '</div>'
     + rows
     + '<p class="rb-note">Completed tasks show up here.</p>'
     + '</section>';
@@ -68,33 +64,6 @@ function renderSectionHeader() {
     + '<button type="button" class="text-btn' + (away ? '' : ' is-off') + '" data-action="nav-today"' + (away ? '' : ' tabindex="-1" aria-hidden="true"') + '>Back to today</button></div>';
 }
 
-/* One card per area; the empty state is the whole body until M2. */
-function areaCardHtml(id) {
-  return '<section class="area-card day-card area-' + id + '" aria-label="' + escapeHtml(pageLabel(id)) + '">'
-    + '<header class="area-card-head"><span class="area-dot" aria-hidden="true"></span><h3>' + escapeHtml(pageLabel(id)) + '</h3></header>'
-    + '<p class="empty-state">No tasks yet</p></section>';
-}
-
-function renderAreaCards() {
-  var ids = ui.page === 'all' ? AREA_IDS : [ui.page];
-  return ids.map(areaCardHtml).join('');
-}
-
-/* The demo row: shape of every swipeable row (card + reveal pill + tray). */
-function demoRowHtml() {
-  var id = 'demo-1';
-  return '<div class="entry-card has-tray tray-2' + (ui.trayOpenId === id ? ' is-tray-open' : '') + '">'
-    + '<div class="entry-row demo-entry-row" data-entry-id="' + id + '">'
-    + '<span class="entry-toggle habit" aria-hidden="true"></span>'
-    + '<div class="entry-main"><div class="entry-title" data-edit-action="demo-rename" data-entry-id="' + id + '">Demo row</div>'
-    + '<div class="entry-sub">Swipe right = done, left = actions, hold title = edit</div></div></div>'
-    + '<div class="swipe-reveal reveal-right" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>'
-    + '<div class="swipe-tray" data-n="2" style="--tray-w:' + trayWidth(2) + 'px">'
-    + '<button type="button" class="tray-btn" data-action="tray-action" data-tray="demo-edit" data-id="' + id + '"><span>Edit</span></button>'
-    + '<button type="button" class="tray-btn danger" data-action="tray-action" data-tray="demo-delete" data-id="' + id + '"><span>Delete</span></button>'
-    + '</div></div>';
-}
-
 /* The bottom nav is static markup; keep its labels in step with areaLabels */
 function syncNavLabels() {
   var items = document.querySelectorAll('.bottom-nav-item');
@@ -108,12 +77,14 @@ function syncNavLabels() {
 /* ================= sheet / layers ================= */
 function currentSheet() {
   if (ui.sheet && ui.sheet.type === 'import') return { title: 'Import data', html: importSheetHtml(ui.sheet) };
+  if (ui.sheet && ui.sheet.type === 'manage') return { title: ui.sheet.area === 'all' ? 'Projects' : pageLabel(ui.sheet.area) + ' projects', html: manageSheetHtml(ui.sheet) };
   return null;
 }
 
 export function closeSheet() {
   if (!ui.sheet) return;
   ui.sheet = null;
+  ui.editing = null; /* an open project editor lived in the sheet */
   render();
 }
 
@@ -131,6 +102,7 @@ export function closeSettings() {
 
 /* Escape / hardware Back: close the topmost layer. Returns true if one closed. */
 export function closeTopLayer() {
+  if (cancelEditing()) return true;
   if (ui.sheet) { closeSheet(); return true; }
   if (ui.trayOpenId) { closeTray(); return true; }
   if (ui.view === 'settings') { closeSettings(); return true; }
@@ -139,7 +111,7 @@ export function closeTopLayer() {
 
 /* Back pressed (layers.js popped a tag): drop that layer's ui state */
 setLayerCloser(function (tag) {
-  if (tag === 'sheet') ui.sheet = null;
+  if (tag === 'sheet') { ui.sheet = null; ui.editing = null; }
   else if (tag === 'settings') { ui.view = 'main'; ui.sheet = null; }
   render();
 });
@@ -170,8 +142,7 @@ export function render() {
     root.innerHTML = renderSettingsView();
   } else {
     root.innerHTML = renderReviewBoard() + renderPageTabs() + renderDayStrip() + renderSectionHeader()
-      + (DEMO ? '<div class="entry-list">' + demoRowHtml() + '</div>' : '')
-      + renderAreaCards();
+      + renderTaskArea();
   }
   syncNavLabels();
   /* the sheet body holds the controls; syncSheet touches the frame only on open/close */
@@ -182,4 +153,5 @@ export function render() {
   if (sheet) layers.push('sheet');
   syncBackStack(layers);
   if (ui.view === 'main') parkStrip();
+  postRenderFocus();
 }

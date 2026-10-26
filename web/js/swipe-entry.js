@@ -17,13 +17,11 @@
                demoRowHtml shows the shape)
      swallowClick   true = eat the trailing click in the capture phase
 
-   M1 has no real rows: the only target is the demo row shell.js renders when
-   the URL has ?demo=1, so the gesture can be checked by hand. M2 replaces it
-   with task rows. */
+   M2: the only target is the task row (page-tasks.js taskCardHtml). */
 
 import { ui } from './state.js';
 import { tickLanded, tickLatch, tickUnlatch } from './haptics.js';
-import { showToast } from './toast.js';
+import { toggleTaskDone, TASK_TRAY } from './tasks-actions.js';
 
 var ACTIVATE_PX = 8;       /* travel before a touch starts tracking as a drag, not a tap */
 var COMMIT_PX = 96;        /* drag past this and released = the action fires */
@@ -36,27 +34,29 @@ var SETTLE_MS = 240;       /* matches the .swipe-settling transition in styles.c
 
 var TRAY_OPEN_FRAC = 0.35;  /* released past this share of the tray's width = it stays open */
 var TRAY_FULL_PX = 32;      /* past the tray's full width by this much = fire the first button */
+var TRAY_FULL_PX_WIDE = 8;  /* ...but a tray wider than 250px (the 7-button task tray) would need a drag longer than the phone is wide, so it gets a hair-trigger line */
 var TRAY_RESIST = 0.5;      /* how much of a drag beyond the tray's edge still moves the card */
 var TRAY_OVER_MAX = 44;     /* and the most it can move past the edge */
 
 /* n buttons of 52px, 4px gaps, 8px edge -- the same arithmetic as the
-   .tray-N classes in styles.css */
-export function trayWidth(n) { return n > 0 ? n * 52 + (n - 1) * 4 + 8 : 0; }
+   .tray-N classes in styles.css. Past five buttons they shrink to 40px so a
+   seven-button tray (the task row) still fits a 360px phone. */
+export function trayWidth(n) {
+  var bw = n > 5 ? 40 : 52;
+  return n > 0 ? n * bw + (n - 1) * 4 + 8 : 0;
+}
 
 var ROW_TARGETS = [
   {
-    selector: '.demo-entry-row',
-    onRight: function (id) { showToast({ message: 'Demo: swipe right fired for ' + id, tone: 'good' }); },
+    selector: '.task-row',
+    onRight: function (id) { toggleTaskDone(id); },
     tray: true
   }
 ];
 
 /* What each tray button does. Keys are the buttons' data-tray values; every one
    gets the row's id. */
-var TRAY_ACTIONS = {
-  'demo-edit': function (id) { showToast({ message: 'Demo: edit ' + id }); },
-  'demo-delete': function (id) { showToast({ message: 'Demo: delete ' + id, tone: 'warn' }); }
-};
+var TRAY_ACTIONS = TASK_TRAY;
 
 /* The tray is closed by forgetting it and dropping the class on the node that
    is already there -- no render(), so the card slides shut instead of being
@@ -83,6 +83,8 @@ var suppressClickAt = 0;
 
 function findRow(target) {
   if (!target.closest) return null;
+  /* typing / selecting inside a rename field or picker is not a swipe */
+  if (target.closest('input, textarea, select')) return null;
   for (var i = 0; i < ROW_TARGETS.length; i++) {
     var row = target.closest(ROW_TARGETS[i].selector);
     if (row) return { row: row, config: ROW_TARGETS[i] };
@@ -113,7 +115,8 @@ function trayPos(dx) {
   if (-pos > w) pos = -(w + Math.min((-pos - w) * TRAY_RESIST, TRAY_OVER_MAX));
   return pos;
 }
-function latchLine() { return drag.tray ? drag.trayW + TRAY_FULL_PX : COMMIT_PX; }
+function fullPx(w) { return w > 250 ? TRAY_FULL_PX_WIDE : TRAY_FULL_PX; }
+function latchLine() { return drag.tray ? drag.trayW + fullPx(drag.trayW) : COMMIT_PX; }
 
 function paint(dx) {
   var clamped = drag.tray ? trayPos(dx) : clampDx(dx, drag.config);
@@ -196,7 +199,7 @@ function finishTray(d, dx, surface) {
     if (pos >= COMMIT_PX) { tickLanded(); d.config.onRight(id); }
     return;
   }
-  if (-pos >= d.trayW + TRAY_FULL_PX) {
+  if (-pos >= d.trayW + fullPx(d.trayW)) {
     /* all the way across: the first button, with the tray left shut */
     var first = surface.querySelector('.swipe-tray [data-tray]');
     closeTray();
@@ -253,7 +256,12 @@ export function onSwipeEntryPointerDown(e) {
   /* the pill is as tall as the row's visible box, measured once; +2 covers the
      card's 1px border top and bottom */
   if (found.config.surface !== 'self') {
-    surface.style.setProperty('--swipe-h', (surface.offsetHeight + 2) + 'px');
+    /* an expanded card is much taller than its row: pill and tray follow the
+       row only (offsetTop + height + the card's 12px bottom padding) */
+    var h = surface.classList.contains('is-expanded')
+      ? found.row.offsetTop + found.row.offsetHeight + 12
+      : surface.offsetHeight;
+    surface.style.setProperty('--swipe-h', (h + 2) + 'px');
   }
   var tray = found.config.tray ? surface.querySelector(':scope > .swipe-tray') : null;
   var trayW = tray ? trayWidth(parseInt(tray.dataset.n, 10) || 0) : 0;
