@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#030303">
+<meta name="color-scheme" content="dark">
+<title>AcadBro</title>
+<link rel="stylesheet" href="./styles.css">
+<link rel="icon" type="image/svg+xml" href="./icon/icon.svg">
+<link rel="manifest" href="./manifest.json">
+</head>
+<body class="page-all">
+<div id="app">
+  <header class="app-header">
+    <div class="brand-slot">
+      <h1 class="app-title brand-item">AcadBro</h1>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="icon-btn" data-action="open-settings" aria-label="Settings" title="Settings">&#9881;</button>
+    </div>
+  </header>
+  <main id="app-root"></main>
+</div>
+
+<!-- Fixed bottom nav, phones only (CSS-gated). Static markup outside #app-root:
+     render() swaps that node's innerHTML wholesale and the bar must survive it.
+     The active item and the hidden-in-Settings state come from the body class
+     shell.js sets each render; shell.js also keeps the labels in step with
+     areaLabels. -->
+<nav class="bottom-nav" aria-label="Areas">
+  <button type="button" class="bottom-nav-item" data-action="switch-page" data-page="all">
+    <span class="bottom-nav-dot"></span><span class="bottom-nav-label">All</span>
+  </button>
+  <button type="button" class="bottom-nav-item" data-action="switch-page" data-page="living">
+    <span class="bottom-nav-dot"></span><span class="bottom-nav-label">Living</span>
+  </button>
+  <button type="button" class="bottom-nav-item" data-action="switch-page" data-page="prod">
+    <span class="bottom-nav-dot"></span><span class="bottom-nav-label">Prod</span>
+  </button>
+  <button type="button" class="bottom-nav-item" data-action="switch-page" data-page="hobby">
+    <span class="bottom-nav-dot"></span><span class="bottom-nav-label">Hobby</span>
+  </button>
+</nav>
+
+<!-- Toast host. Static for the same reason as the nav: a toast has to survive
+     the very re-render that the action raising it triggers. js/toast.js owns
+     everything inside. -->
+<div id="toast-host" class="toast-host" aria-live="polite" aria-relevant="additions"></div>
+
+<!-- Bottom sheet frame (js/layers.js). Static so the slide-in runs once;
+     render() only swaps .sheet-body. -->
+<div id="sheet-host" class="sheet-host" hidden>
+  <div class="sheet-scrim" data-action="close-sheet"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-grip"><span class="sheet-handle" aria-hidden="true"></span>
+      <div class="sheet-head"><h2 id="sheet-title" class="sheet-title"></h2>
+        <button type="button" class="icon-btn sheet-close" data-action="close-sheet" aria-label="Close">&#10005;</button></div>
+    </div>
+    <div class="sheet-body"></div>
+  </div>
+</div>
+
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

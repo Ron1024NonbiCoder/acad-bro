@@ -1,0 +1,867 @@
+/* AcadBro -- dark theme, mobile-first. Design language cloned from GymBro. */
+
+:root {
+  color-scheme: dark;
+  --bg: #030303;
+  --card: rgba(28, 28, 30, 0.55);
+  --card-2: rgba(255, 255, 255, 0.06);
+  --card-3: rgba(255, 255, 255, 0.09);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-soft: rgba(255, 255, 255, 0.05);
+  --text: #e5e5e7;
+  --text-secondary: #9a9a9a;
+  --text-muted: #7c7c7c; /* ~4.7:1 on --bg, passes AA for small text */
+
+  /* red = overdue / high priority only (docs/DEV.md); never a page accent */
+  --red: #e5302c;
+  --red-area: rgba(229, 48, 44, 0.10);
+  --red-soft: rgba(229, 48, 44, 0.14);
+  --orange: #f5920b;
+  --orange-soft: rgba(245, 146, 11, 0.14);
+  --orange-area: rgba(245, 146, 11, 0.10);
+  --blue: #1e6ef5;
+
+  /* page tones: all = violet, living = teal, prod = sky, hobby = orange.
+     Anything that should follow the current page uses --accent (set per body.page-*). */
+  --sky: #3ea6ff;
+  --sky-soft: rgba(62, 166, 255, 0.14);
+  --sky-area: rgba(62, 166, 255, 0.10);
+  --sky-deep: #1d4ed8;
+  --violet: #8b7cf6;
+  --violet-soft: rgba(139, 124, 246, 0.16);
+  --violet-area: rgba(139, 124, 246, 0.10);
+  --teal: #2fc4c9;
+  --teal-soft: rgba(47, 196, 201, 0.14);
+  --teal-area: rgba(47, 196, 201, 0.10);
+
+  --green: #32d158;
+
+  --grey-dot: #3a3a3a;
+  --ring-grey: #5a5a5a;
+
+  --card-hover: rgba(255, 255, 255, 0.13);
+
+  /* underlined text fields: the idle rule has to be visible enough to say
+     "type here" on its own, since there is no box saying it */
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  /* glassmorphism */
+  --glass-bg: rgba(18, 18, 18, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-hover: rgba(255, 255, 255, 0.14);
+  --glass-blur: blur(16px);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.55);
+  /* opaque so sheets and menus hide what scrolls under them */
+  --strip-freeze-bg: #141618;
+
+  /* design scale */
+  --fs-caption: 11px;  /* labels, axis text, meta */
+  --fs-sm: 13px;       /* secondary rows, buttons, hints */
+  --fs-base: 15px;     /* primary row text */
+  --fs-title: 18px;    /* card / section titles */
+  --fs-h2: 22px;
+  --fs-h1: 26px;
+  --radius: 16px;      /* cards, sheets */
+  --radius-md: 12px;   /* inner panels, inputs */
+  --radius-sm: 8px;    /* rows, chips, small buttons */
+  --gap: 12px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 160ms; --dur: 220ms; --dur-slow: 300ms;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --tap-min: 44px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+
+  /* current page accent; overridden by body.page-* below. Default = All. */
+  --accent: var(--violet);
+  --accent-soft: var(--violet-soft);
+  --accent-area: var(--violet-area);
+  --on-accent: #fff;      /* text on a solid --accent fill */
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  /* clip, not hidden: hidden still lets focusing an input scroll the page
+     sideways to reveal it; clip has no scroll position to move at all */
+  overflow-x: hidden;
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: var(--fs-base);
+  line-height: 1.4;
+  padding-bottom: 40px;
+  background:
+    radial-gradient(ellipse at var(--grad-red-x, 25%) 0%, var(--grad-tone-a, rgba(70, 40, 130, 0.40)) 0%, transparent var(--grad-red-reach, 45%)),
+    radial-gradient(ellipse at var(--grad-violet-x, 85%) 0%, var(--grad-tone-b, rgba(90, 60, 160, 0.24)) 0%, transparent 35%),
+    #030303;
+  position: relative;
+  min-height: 100vh;
+  animation: bg-drift 52s ease-in-out infinite alternate;
+  transition: --grad-tone-a 1.1s ease, --grad-tone-b 1.1s ease;
+}
+
+/* Registered so the gradient positions/colors can interpolate; browsers
+   without @property support keep the static initial values */
+@property --grad-red-x { syntax: '<percentage>'; inherits: false; initial-value: 25%; }
+@property --grad-violet-x { syntax: '<percentage>'; inherits: false; initial-value: 85%; }
+@property --grad-red-reach { syntax: '<percentage>'; inherits: false; initial-value: 45%; }
+@property --grad-tone-a { syntax: '<color>'; inherits: false; initial-value: rgba(70, 40, 130, 0.40); }
+@property --grad-tone-b { syntax: '<color>'; inherits: false; initial-value: rgba(90, 60, 160, 0.24); }
+
+/* Page-tinted ambient background and accent. All is the default (:root / body). */
+body.page-living {
+  --accent: var(--teal); --accent-soft: var(--teal-soft); --accent-area: var(--teal-area); --on-accent: #04181a;
+  --grad-tone-a: rgba(15, 95, 100, 0.38);
+  --grad-tone-b: rgba(20, 75, 95, 0.22);
+}
+body.page-prod {
+  --accent: var(--sky); --accent-soft: var(--sky-soft); --accent-area: var(--sky-area); --on-accent: #04121f;
+  --grad-tone-a: rgba(20, 70, 120, 0.40);
+  --grad-tone-b: rgba(15, 55, 110, 0.22);
+}
+body.page-hobby {
+  --accent: var(--orange); --accent-soft: var(--orange-soft); --accent-area: var(--orange-area); --on-accent: #1a0f00;
+  --grad-tone-a: rgba(120, 65, 5, 0.38);
+  --grad-tone-b: rgba(95, 50, 10, 0.22);
+}
+/* derived from --accent, so they must be declared where --accent is overridden
+   (a var() on :root would resolve to the default) */
+body {
+  --field-focus: var(--accent);
+  --focus-ring: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+body.view-settings[class] { /* beats body.page-* (higher specificity) */
+  --accent: var(--violet); --accent-soft: var(--violet-soft); --accent-area: var(--violet-area); --on-accent: #fff;
+}
+
+@keyframes bg-drift {
+  0%   { --grad-red-x: 25%; --grad-violet-x: 85%; --grad-red-reach: 45%; }
+  50%  { --grad-red-x: 33%; --grad-violet-x: 78%; --grad-red-reach: 49%; }
+  100% { --grad-red-x: 20%; --grad-violet-x: 90%; --grad-red-reach: 43%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body { animation: none; }
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus-visible, [role="button"]:focus-visible, .settings-row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- text fields: a rule, not a box ----------
+   The underline carries the state: dim when idle, brighter on hover, a solid
+   accent 2px rule while focused. The border-bottom keeps the same width in
+   both states so nothing below shifts a pixel. */
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--border-strong);
+  border-radius: 0;
+  padding: 6px 2px;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-bottom-color: var(--field-focus);
+  box-shadow: none;
+}
+input:hover:not(:focus), textarea:hover:not(:focus), select:hover:not(:focus) {
+  border-bottom-color: var(--ring-grey);
+}
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+select {
+  background: var(--card-2);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 6px 8px;
+}
+input[type="file"] { border-bottom: none; }
+
+h1, h2, h3, p { margin: 0; }
+
+#app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 14px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- glassmorphism panels ---------- */
+.day-card,
+.day-strip-card,
+.review-board,
+.page-tabs,
+.modal-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+}
+
+/* ---------- header ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 2px 8px;
+}
+.brand-slot {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  align-items: center;
+  min-height: 40px;
+  padding-right: 8px;
+}
+.brand-item { grid-area: 1 / 1; min-width: 0; margin: 0; }
+.app-title {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-title);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--text-secondary);
+}
+.icon-btn:active { background: var(--card-2); }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.text-btn {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent);
+  padding: 8px 4px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+.text-btn.is-off { visibility: hidden; }
+
+/* ---------- section headers ---------- */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 6px;
+  min-height: 40px;
+}
+.section-header h2 {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}
+.section-sub {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ---------- page tabs (tablet / desktop) ---------- */
+.page-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  margin: 8px 0 8px;
+}
+.page-tab {
+  flex: 1;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.page-tab:hover:not(.active) { color: var(--text); }
+.page-tab:active { background: var(--card-2); }
+.page-tab.active { background: var(--card-3); color: var(--text); }
+
+/* ---------- day strip: one swipeable week ---------- */
+.day-strip-card {
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.day-strip {
+  padding: 12px 0 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* a swipe pages one week at a time (settleStripScroll in day-strip.js) */
+  scroll-snap-type: x mandatory;
+}
+.day-strip::-webkit-scrollbar { display: none; }
+/* three week-pages side by side: last / this / next; the scroller shows one */
+.strip-grid { display: flex; }
+.strip-week {
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  column-gap: 2px;
+  align-items: center;
+  padding: 0 8px;
+  box-sizing: border-box;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.strip-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 26px;
+  padding: 2px 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+.strip-cell:hover:not(.selected) { background: var(--card-2); }
+.strip-cell.selected { background: var(--card-3); }
+.strip-weekday {
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  line-height: 1;
+}
+.day-num-wrap {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.strip-cell.selected .day-num-wrap { font-weight: 700; color: var(--text); }
+/* today is marked by a small triangle under its number, never by a fill; every
+   other day has an empty slot of the same height so the strip never changes height */
+.strip-today-mark {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.strip-cell.is-today .strip-today-mark { border-bottom-color: var(--accent); }
+
+/* ---------- review board (placeholder until M4) ---------- */
+.review-board {
+  margin: 2px 0 6px;
+  padding: 8px 10px 6px;
+  border-radius: var(--radius-md);
+}
+.rb-row {
+  display: grid;
+  grid-template-columns: 56px repeat(7, 1fr);
+  align-items: center;
+  justify-items: center;
+  min-height: 26px;
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+  transition: background var(--dur) ease;
+}
+.rb-name { justify-self: start; font-size: var(--fs-caption); font-weight: 700; color: var(--text-secondary); }
+.rb-head .section-sub { justify-self: start; white-space: nowrap; }
+.rb-day { font-size: var(--fs-caption); color: var(--text-muted); line-height: 1; }
+.rb-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--grey-dot); }
+.rb-note { margin-top: 4px; font-size: var(--fs-caption); color: var(--text-muted); text-align: center; }
+/* the row for the page you are on gets that page's tone */
+body.page-living .rb-living { background: var(--teal-area); }
+body.page-prod .rb-prod { background: var(--sky-area); }
+body.page-hobby .rb-hobby { background: var(--orange-area); }
+body.page-living .rb-living .rb-name { color: var(--teal); }
+body.page-prod .rb-prod .rb-name { color: var(--sky); }
+body.page-hobby .rb-hobby .rb-name { color: var(--orange); }
+
+/* ---------- area cards ---------- */
+.day-card { border-radius: var(--radius); padding: 12px; margin-top: 10px; }
+.area-living { --area: var(--teal); }
+.area-prod { --area: var(--sky); }
+.area-hobby { --area: var(--orange); }
+.area-card-head { display: flex; align-items: center; gap: 8px; }
+.area-card-head h3 { font-size: var(--fs-base); font-weight: 700; }
+.area-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--area, var(--accent)); }
+.empty-state {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  padding: 18px 4px;
+  text-align: center;
+}
+
+/* ---------- entry rows (swipe targets) ---------- */
+.entry-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.entry-card {
+  position: relative;
+  background: var(--card-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+.entry-row { display: flex; align-items: center; gap: 10px; }
+.entry-main { flex: 1; min-width: 0; }
+.entry-title { font-size: var(--fs-base); font-weight: 600; }
+.entry-sub { font-size: var(--fs-caption); color: var(--text-secondary); }
+.entry-toggle {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  border: 1.6px solid var(--ring-color, var(--ring-grey));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+.entry-toggle.habit { --ring-color: var(--accent); }
+.entry-toggle.completed { background: var(--ring-color); border-color: var(--ring-color); }
+
+/* ---------- swipe-to-reveal: complete right, action tray left ----------
+   The drag starts on the row but moves the whole .entry-card; the action is a
+   detached rounded pill that grows in the gap the card leaves behind. The row
+   has no background of its own (--card-2 is translucent: a filled row on a
+   filled card read as two stacked boxes). touch-action: pan-y keeps the page
+   scrolling vertically while the horizontal drag is ours. */
+.demo-entry-row {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-y;
+}
+.entry-card.swipe-settling { transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.swipe-reveal {
+  position: absolute;
+  top: -1px;
+  bottom: auto;
+  height: var(--swipe-h, calc(100% + 2px));
+  width: max(0px, calc(var(--swipe-dx, 0px) - 8px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+.swipe-reveal svg { width: 20px; height: 20px; }
+/* the icon fades and grows in with the drag, full size at the commit line */
+.swipe-reveal > * {
+  opacity: var(--swipe-progress, 0);
+  transform: scale(calc(0.6 + 0.4 * var(--swipe-progress, 0)));
+}
+.reveal-right {
+  right: calc(100% + 9px);
+  background: var(--ring-color, var(--accent));
+  color: #fff;
+}
+.entry-card.dragging-right > .reveal-right {
+  opacity: 1;
+  transition: none;
+}
+/* The action tray: fixed-size buttons just outside the card's right edge, so
+   card and tray travel together. Resting offset when open is -(tray width) =
+   n x 52px + (n-1) x 4px + 8px (swipe-entry.js trayWidth uses the same numbers). */
+.entry-card.tray-2 { --tray-w: 116px; }
+.entry-card.tray-3 { --tray-w: 172px; }
+.entry-card.tray-4 { --tray-w: 228px; }
+.entry-card.tray-5 { --tray-w: 284px; }
+.entry-card.has-tray { transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.entry-card.has-tray.is-tray-open { transform: translateX(calc(-1 * var(--tray-w))); }
+.swipe-tray {
+  position: absolute;
+  top: -1px;
+  left: calc(100% + 8px);
+  height: var(--swipe-h, calc(100% + 2px));
+  width: calc(var(--tray-w) - 8px);
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 160ms ease, visibility 0s linear 160ms;
+}
+.entry-card.dragging-left > .swipe-tray,
+.entry-card.is-tray-open > .swipe-tray {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 160ms ease;
+}
+.tray-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--card-3);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tray-btn svg { width: 20px; height: 20px; }
+.tray-btn span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tray-btn.danger { background: var(--red); color: #fff; }
+.tray-btn:active { filter: brightness(1.15); }
+.tray-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .entry-card.has-tray, .entry-card.swipe-settling { transition: none; }
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  background: var(--card-3);
+  color: var(--text);
+}
+.btn.primary { background: var(--accent); color: var(--on-accent); }
+.btn.danger { color: var(--red); }
+.btn:hover { filter: brightness(1.12); }
+.btn:active { opacity: 0.8; }
+.btn:disabled, .btn.disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+.editor-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* ---------- settings view ---------- */
+.settings-head { display: flex; align-items: center; gap: 10px; margin: 4px 0 4px; }
+.settings-title { font-size: var(--fs-h2); font-weight: 800; }
+.settings-note {
+  margin-top: 8px;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.settings-group-label {
+  margin: 18px 0 8px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+/* rows share one card: a single border round the group, hairlines between rows */
+.settings-rows {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: none;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+}
+.settings-row:first-child { border-top: none; }
+.settings-row:active { background: var(--card-2); }
+.settings-row-text { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.settings-row-label { font-size: var(--fs-base); font-weight: 700; color: var(--text); }
+.settings-row-hint { font-size: var(--fs-caption); line-height: 1.45; color: var(--text-secondary); }
+.settings-row-chevron { flex: none; font-size: var(--fs-title); color: var(--text-muted); }
+/* present but inert: reads as information, not as a control failing to respond */
+.settings-row.is-muted { opacity: 0.55; cursor: default; }
+.settings-row.is-muted:active { background: var(--card); }
+.settings-pill {
+  flex: none;
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--card-3);
+  border: 1px solid var(--border);
+  position: relative;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.settings-pill::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.settings-toggle-row.is-on .settings-pill { background: var(--accent-soft); border-color: var(--accent); }
+.settings-toggle-row.is-on .settings-pill::after { transform: translateX(16px); background: var(--accent); }
+.segmented {
+  flex: none;
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.segmented-btn {
+  padding: 6px 10px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--card-3);
+  border: none;
+  border-left: 1px solid var(--border);
+}
+.segmented-btn:first-child { border-left: none; }
+.segmented-btn.is-on { background: var(--accent-soft); color: var(--accent); }
+
+.import-file { font-size: var(--fs-base); font-weight: 700; word-break: break-all; }
+.import-counts { margin-top: 2px; font-size: var(--fs-sm); color: var(--text-secondary); }
+
+/* ---------- toasts ----------
+   Fixed to the top-right, sliding in from the right edge. The host is
+   pointer-events:none so the strip never blocks taps on the app underneath;
+   each toast re-enables them for itself. */
+.toast-host {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  right: calc(10px + env(safe-area-inset-right, 0px));
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none;
+  max-width: min(360px, calc(100vw - 20px));
+}
+.toast {
+  pointer-events: auto;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 30px 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-muted);
+  background: rgba(28, 28, 30, 0.82);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  /* start off-screen to the right; .shown slides it home */
+  transform: translateX(calc(100% + 16px));
+  opacity: 0;
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.24s ease;
+}
+.toast.shown { transform: translateX(0); opacity: 1; }
+/* 220ms here must stay in step with EXIT_MS in js/toast.js */
+.toast.leaving { transform: translateX(calc(100% + 16px)); opacity: 0; transition-duration: 0.22s; }
+.toast-good { border-left-color: var(--teal); }
+.toast-warn { border-left-color: var(--orange); }
+.toast-msg { line-height: 1.35; }
+.toast-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.toast-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+.toast-btn.primary { color: var(--sky); border-color: var(--sky-soft); background: var(--sky-soft); }
+.toast-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-caption);
+  line-height: 1;
+  padding: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: opacity 0.2s ease; transform: none; }
+  .toast.leaving { transform: none; }
+}
+
+/* ---------- bottom sheet (index.html #sheet-host, js/layers.js) ---------- */
+body.sheet-open { overflow: hidden; }
+.sheet-host { position: fixed; inset: 0; z-index: 50; }
+.sheet-host[hidden] { display: none; }
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+  transition: opacity var(--dur) ease;
+}
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 640px;
+  margin: 0 auto;
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: var(--strip-freeze-bg);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  transform: translateY(100%);
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+.sheet-host.is-open .sheet-scrim { opacity: 1; }
+.sheet-host.is-open .sheet { transform: translateY(0); }
+.sheet.is-dragging { transition: none; }
+.sheet-grip { padding: 8px var(--space-4) 0; touch-action: none; flex: none; }
+.sheet-handle {
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 6px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.sheet-title { margin: 0; font-size: var(--fs-title); font-weight: 700; }
+.sheet-close { color: var(--text-secondary); }
+.sheet-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet { transition: none; }
+}
+
+.hidden { display: none !important; }
+
+/* ---------- fixed bottom nav (phones only) ----------
+   Hidden by default and switched on in the phone media query below, so tablet
+   and desktop keep the inline .page-tabs bar. The active item is selected purely
+   by the body class shell.js writes on every render. */
+.bottom-nav { display: none; }
+
+.bottom-nav-item {
+  flex: 1;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 14px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+  -webkit-tap-highlight-color: transparent;
+}
+.bottom-nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+body.page-all .bottom-nav-item[data-page="all"],
+body.page-living .bottom-nav-item[data-page="living"],
+body.page-prod .bottom-nav-item[data-page="prod"],
+body.page-hobby .bottom-nav-item[data-page="hobby"] {
+  background: var(--card-3);
+  color: var(--text);
+}
+body.page-all .bottom-nav-item[data-page="all"] .bottom-nav-dot { opacity: 1; transform: scale(1.35); background: var(--violet); }
+body.page-living .bottom-nav-item[data-page="living"] .bottom-nav-dot { opacity: 1; transform: scale(1.35); background: var(--teal); }
+body.page-prod .bottom-nav-item[data-page="prod"] .bottom-nav-dot { opacity: 1; transform: scale(1.35); background: var(--sky); }
+body.page-hobby .bottom-nav-item[data-page="hobby"] .bottom-nav-dot { opacity: 1; transform: scale(1.35); background: var(--orange); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-dot { transition: none; }
+}
+
+@media (min-width: 480px) {
+  body { font-size: var(--fs-base); }
+}
+
+/* ---------- phone layout: bottom bar replaces the inline tabs ---------- */
+@media (max-width: 599px) {
+  .page-tabs { display: none; }
+
+  .bottom-nav {
+    display: flex;
+    gap: 4px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 6px 10px;
+    /* keeps the row clear of the iOS home indicator / Android gesture pill */
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    background: var(--glass-bg);
+    border-top: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    touch-action: pan-y;
+  }
+  body.view-settings .bottom-nav { display: none; }
+
+  /* the bar is fixed and out of flow, so the page has to reserve its height or
+     the last card sits underneath it and can't be reached */
+  #app { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  body.view-settings #app { padding-bottom: 0; }
+}
