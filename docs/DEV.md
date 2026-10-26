@@ -41,6 +41,10 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - [x] 2026-10-26 Recurrence: **chosen weekdays** (all 7 = daily) and **monthly on day D**. If D exceeds the month's length, it falls on the last day of that month *(Claude default; confirm)*.
 - [x] 2026-10-26 **Subtask completion counts as activity** for its day (and for its task's project). Subtask completions are logged in `completions` with a `subtaskId`.
 - [x] 2026-10-26 A missed recurring occurrence **just passes**. No overdue pile-up.
+- [x] 2026-10-26 **Task list has switchable views**: *Grouped by project* (collapsible project cards; loose tasks at top) / *Flat* (sorted by due, then priority, with a project chip). The choice is remembered per area, per device.
+- [x] 2026-10-26 **All page** = everything due, recurring, or done on the selected day, grouped by area.
+- [x] 2026-10-26 **Swipe-left tray**: Due / Priority / Repeat / Rename / Note / Move / Delete. A full swipe fires Due. Subtasks are added in the expanded view (tap the task).
+- [ ] Monthly day D beyond the month's length goes to the last day (Claude default; confirm).
 - [ ] Can areas be renamed / added? *Fixed 3 areas, labels renamable.*
 - [x] 2026-10-26 Input limits accepted: name 80 chars, note 2000, 30 subtasks per task, 200 projects, 5000 tasks. Hitting a limit shows a toast (never a silent reject).
 - [ ] Priority levels: *none / low / med / high.*
@@ -56,7 +60,10 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - `events.js` delegates `data-action` clicks.
 - `storage.js`: local-first, using localStorage key `acadbro-data-v1`, a DIRTY marker, a BASE (cloud `updatedAt`), and retry backoff of 2/5/15/30/60s.
 - `swipe-entry.js`: right = complete, left = action tray. `long-press.js`: hold = edit logged values.
-- Tests: `node scripts/test-*.mjs` (no framework).
+- Tests: `node scripts/test-*.mjs` (no framework). Needs Node ≥ 22.7 (ESM `.js` without package.json).
+- Dev server: `node scripts/serve.mjs` (PORT env, default 5180). `?page=prod&demo=1` shows a demo swipe row.
+- `storage.js` reports save/size errors via `hooks` (testable in node). Corrupt local data is copied to `acadbro-data-corrupt` + warning toast. Import = preview sheet → confirm, backup in `acadbro-import-backup`, Undo.
+- Device-local settings (week start, haptics) live in `settings.js` and are never synced.
 
 ### Data model (draft v1)
 
@@ -93,8 +100,11 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 ### Claude
 | Status | Item |
 |---|---|
-| in progress | M1 shell & infrastructure |
-| pending | M2–M6 |
+| done 2026-10-26 | M1 shell & infrastructure (tests 10+13 pass; serve on PORT, default 5180) |
+| next | M2 projects & tasks CRUD + view switch |
+| pending | M3–M6 |
+| pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
+| pending | PNG icons (iOS ignores SVG apple-touch-icon) |
 
 ### Product Owner
 | Status | Item |
@@ -109,3 +119,4 @@ _None yet._
 ## 8. Changelog
 
 - 2026-10-26: Project started; decisions §2 recorded.
+- 2026-10-26: M1 shell built (index/styles/sw/manifest, state, storage, toast, day strip, swipe/long-press ports, settings + JSON import/export).
