@@ -105,6 +105,8 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 
 ### Android TWA (M6 step 6, built 2026-10-27)
 
+- **Android Studio route (PO sideloads with AS, 2026-10-27):** open the `android/` folder in AS and press Run; see `android/README.md`. `app/build.gradle` now has a `signingConfigs.acadbro` block that reads `C:\Users\Sir\.acadbro-keys\keystore.properties` (path, alias, passwords; outside the repo) and signs BOTH `debug` and `release` with the AcadBro key. Without that, AS's default debug key has another SHA-256 and the TWA would show a URL bar. Verified: `gradlew assembleDebug` succeeds and `apksigner verify --print-certs` shows `7bc2cd01…2eaabe54`, equal to `assetlinks.json` (live). `bubblewrap update` overwrites this block; re-apply it from git history. No Gradle work needed by hand.
+
 - Project: `android/` (Bubblewrap-generated Gradle project). Source of truth = `android/twa-manifest.json`; `manifest-checksum.txt` = SHA-1 of that file (Bubblewrap compares it to decide whether to regenerate).
 - Toolchain: `~/.bubblewrap/config.json` (shared with other projects on this PC, do not edit): JDK 17 at `C:\Users\Sir\.bubblewrap\jdk-17.0.19+10`, SDK at `C:\Users\Sir\.bubblewrap\android_sdk` (build-tools 35.0.0).
 - Keystore: `C:\Users\Sir\.acadbro-keys\acadbro.keystore` (PKCS12, alias `acadbro`, store password = key password); password in `C:\Users\Sir\.acadbro-keys\password.txt`. Both outside the repo; never commit or print them.
