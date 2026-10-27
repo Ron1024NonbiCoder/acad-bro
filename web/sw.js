@@ -10,7 +10,7 @@
    cache is only a fallback when the network is unavailable. Cross-origin
    requests (Firebase, later) are never intercepted. */
 
-const CACHE = 'acadbro-v1';
+const CACHE = 'acadbro-v2';
 
 /* Precached resiliently so one missing URL can't abort install. JS modules get
    cached on first visit by the fetch handler, so this list need not track

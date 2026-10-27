@@ -6,19 +6,20 @@ export var SETTINGS_KEY = 'acadbro-settings-v1';
 
 var DEFAULT_VIEWS = { all: 'grouped', living: 'grouped', prod: 'grouped', hobby: 'grouped' };
 var VIEW_KINDS = { grouped: true, flat: true };
-var DEFAULTS = { weekStart: 'mon', haptics: true, showCompleted: false };
+var DEFAULTS = { weekStart: 'mon', haptics: true, showCompleted: false, reviewShown: true };
 var WEEK_STARTS = { mon: 1, sun: 0, sat: 6 }; /* -> Date#getDay() number */
 
 function ls() { try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (err) { return null; } }
 
 function load() {
-  var out = { weekStart: DEFAULTS.weekStart, haptics: DEFAULTS.haptics, showCompleted: DEFAULTS.showCompleted, views: Object.assign({}, DEFAULT_VIEWS) };
+  var out = { weekStart: DEFAULTS.weekStart, haptics: DEFAULTS.haptics, showCompleted: DEFAULTS.showCompleted, reviewShown: DEFAULTS.reviewShown, views: Object.assign({}, DEFAULT_VIEWS) };
   try {
     var raw = ls() && ls().getItem(SETTINGS_KEY);
     var p = raw ? JSON.parse(raw) : null;
     if (p && WEEK_STARTS[p.weekStart] !== undefined) out.weekStart = p.weekStart;
     if (p && typeof p.haptics === 'boolean') out.haptics = p.haptics;
     if (p && typeof p.showCompleted === 'boolean') out.showCompleted = p.showCompleted;
+    if (p && typeof p.reviewShown === 'boolean') out.reviewShown = p.reviewShown;
     if (p && p.views && typeof p.views === 'object') {
       Object.keys(DEFAULT_VIEWS).forEach(function (k) { if (VIEW_KINDS[p.views[k]]) out.views[k] = p.views[k]; });
     }

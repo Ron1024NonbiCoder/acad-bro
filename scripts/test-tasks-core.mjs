@@ -3,10 +3,10 @@
 
 import assert from 'node:assert/strict';
 import {
-  LIMITS, activeDays, applyDiff, canAdd, describeRecur, diffCollections, doneCompletion,
-  indexCompletions, isDone, isDue, isEmptyDiff, isOverdue, isRelevant, isSubtaskDone,
-  matchesRecur, normalizeRecur, snapshotCollections, sortFlat, subtaskProgress,
-  validateName, validateNote
+  LIMITS, activeDays, activityIndex, activityKey, applyDiff, canAdd, describeRecur, diffCollections, doneCompletion,
+  heatmapGrid, indexCompletions, intensityLevel, isDone, isDue, isEmptyDiff, isOverdue, isRelevant, isSubtaskDone,
+  matchesRecur, normalizeRecur, reviewGroups, snapshotCollections, sortFlat, subtaskProgress,
+  validateName, validateNote, windowDays
 } from '../web/js/tasks-core.js';
 
 var n = 0;
@@ -269,6 +269,96 @@ test('no-op mutation gives an empty diff', function () {
   var data = db();
   var snap = snapshotCollections(data);
   assert.equal(isEmptyDiff(diffCollections(snap, data)), true);
+});
+
+/* ---------- review board & heatmaps (M4) ---------- */
+test('activityIndex: one pass agrees with activeDays for projects and loose rows', function () {
+  var tasks = [
+    task({ id: 't1', projectId: 'p1' }), task({ id: 't2', projectId: 'p1', subtasks: [{ id: 's1', title: 'a' }] }),
+    task({ id: 't3', projectId: null, area: 'prod' }), task({ id: 't4', projectId: null, area: 'hobby' })
+  ];
+  var comps = [
+    comp({ taskId: 't1', date: '2026-10-26' }), comp({ taskId: 't2', date: '2026-10-26' }),
+    comp({ taskId: 't2', subtaskId: 's1', date: '2026-10-26' }), /* same task, same day: counts once */
+    comp({ taskId: 't2', subtaskId: 's1', date: '2026-10-24' }), /* subtask-only day is activity */
+    comp({ taskId: 't3', date: '2026-10-25' }), comp({ taskId: 't4', date: '2026-10-25' }),
+    comp({ taskId: 't1', date: '2026-09-01' }), /* outside the range */
+    comp({ taskId: 'gone', date: '2026-10-26' }) /* deleted task: ignored */
+  ];
+  var idx = activityIndex(tasks, comps, '2026-10-20', '2026-10-26');
+  assert.deepEqual(windowDays(idx.get('p:p1'), '2026-10-26', 7), activeDays('p1', tasks, comps, '2026-10-26', 7));
+  assert.deepEqual(windowDays(idx.get('loose:prod'), '2026-10-26', 7), activeDays(null, tasks, comps, '2026-10-26', 7, 'prod'));
+  assert.deepEqual(windowDays(idx.get('loose:hobby'), '2026-10-26', 7), activeDays(null, tasks, comps, '2026-10-26', 7, 'hobby'));
+  assert.equal(idx.get('p:p1').get('2026-10-26'), 2);
+  assert.equal(idx.get('p:p1').has('2026-09-01'), false);
+  assert.equal(activityKey(task({ projectId: 'p9' })), 'p:p9');
+  assert.equal(activityKey(task({ projectId: null, area: 'living' })), 'loose:living');
+});
+
+test('windowDays: no data gives seven inactive days ending on the given day', function () {
+  var days = windowDays(undefined, '2026-10-26', 7);
+  assert.equal(days.length, 7);
+  assert.equal(days[0].date, '2026-10-20');
+  assert.equal(days[6].date, '2026-10-26');
+  assert.equal(days.every(function (d) { return d.count === 0 && d.active === false; }), true);
+});
+
+test('intensityLevel: 0,1,2,3 and 4+ collapse to four tints', function () {
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 40].map(intensityLevel), [0, 1, 2, 3, 4, 4, 4]);
+});
+
+test('heatmapGrid: 12 week columns, Monday start, future days of the last week blank', function () {
+  /* 2026-10-26 is a Monday: the last column is Mon Oct 26 .. Sun Nov 1 */
+  var counts = new Map([['2026-10-26', 5], ['2026-10-25', 2], ['2026-08-10', 1]]);
+  var g = heatmapGrid(counts, '2026-10-26', 12, 1);
+  assert.equal(g.weeks.length, 12);
+  assert.equal(g.weeks.every(function (w) { return w.cells.length === 7; }), true);
+  assert.equal(g.weeks[0].cells[0].date, '2026-08-10'); /* 11 weeks before Oct 26 */
+  assert.equal(g.weeks[0].cells[0].level, 1);
+  var last = g.weeks[11].cells;
+  assert.equal(last[0].date, '2026-10-26');
+  assert.equal(last[0].level, 4);
+  assert.equal(last[0].inRange, true);
+  assert.equal(last[1].inRange, false); /* Tue Oct 27: after the selected day */
+  assert.equal(g.weeks[10].cells[6].date, '2026-10-25');
+  assert.equal(g.weeks[10].cells[6].level, 2);
+  assert.equal(g.total, 8);
+  assert.equal(g.weeks[0].month, 'Aug');
+});
+
+test('heatmapGrid: week start follows the setting (Sunday, Saturday)', function () {
+  /* Wed 2026-10-28 */
+  var sun = heatmapGrid(null, '2026-10-28', 12, 0);
+  assert.equal(sun.weeks[11].cells[0].date, '2026-10-25'); /* Sunday */
+  assert.equal(sun.weeks[11].cells[3].date, '2026-10-28');
+  assert.equal(sun.weeks[11].cells[3].inRange, true);
+  assert.equal(sun.weeks[11].cells[4].inRange, false);
+  var sat = heatmapGrid(null, '2026-10-28', 12, 6);
+  assert.equal(sat.weeks[11].cells[0].date, '2026-10-24'); /* Saturday */
+  assert.equal(sat.total, 0);
+  /* the selected day itself is the first cell of its week when it is the week start */
+  assert.equal(heatmapGrid(null, '2026-10-26', 12, 1).weeks[11].cells[0].inRange, true);
+});
+
+test('heatmapGrid: month label only where the month changes', function () {
+  var months = heatmapGrid(null, '2026-10-26', 12, 1).weeks.map(function (w) { return w.month; }).filter(Boolean);
+  assert.deepEqual(months, ['Aug', 'Sep', 'Oct']);
+});
+
+test('reviewGroups: non-archived projects in order, loose row first and only when needed', function () {
+  var projects = [
+    { id: 'p2', area: 'prod', name: 'B', archived: false, order: 2 },
+    { id: 'p1', area: 'prod', name: 'A', archived: false, order: 1 },
+    { id: 'p3', area: 'prod', name: 'Old', archived: true, order: 3 },
+    { id: 'p4', area: 'hobby', name: 'Guitar', archived: false, order: 1 }
+  ];
+  var tasks = [task({ id: 'a', area: 'prod', projectId: null }), task({ id: 'b', area: 'hobby', projectId: 'p4' })];
+  var g = reviewGroups(['living', 'prod', 'hobby'], projects, tasks);
+  assert.deepEqual(g.map(function (x) { return x.area; }), ['prod', 'hobby']); /* living has nothing */
+  assert.deepEqual(g[0].rows.map(function (r) { return r.key; }), ['loose:prod', 'p:p1', 'p:p2']);
+  assert.equal(g[0].rows[0].name, null);
+  assert.deepEqual(g[1].rows.map(function (r) { return r.key; }), ['p:p4']); /* no loose tasks in hobby */
+  assert.deepEqual(reviewGroups(['living'], [], []), []);
 });
 
 if (!process.exitCode) console.log('test-tasks-core: ' + n + ' tests passed');

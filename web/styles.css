@@ -381,34 +381,143 @@ h1, h2, h3, p { margin: 0; }
 }
 .strip-cell.is-today .strip-today-mark { border-bottom-color: var(--accent); }
 
-/* ---------- review board (placeholder until M4) ---------- */
+/* ---------- review board (M4): 7-day dots + in-place heatmap ---------- */
 .review-board {
   margin: 2px 0 6px;
-  padding: 8px 10px 6px;
+  padding: 4px 10px 6px;
   border-radius: var(--radius-md);
 }
+.rb-top {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+.rb-top:hover .section-sub { color: var(--text); }
+.rb-range { margin-left: auto; font-size: var(--fs-caption); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.rb-body { padding-bottom: 2px; }
 .rb-row {
   display: grid;
-  grid-template-columns: 64px repeat(7, 1fr);
+  grid-template-columns: 84px repeat(7, minmax(0, 1fr));
   align-items: center;
   justify-items: center;
-  min-height: 26px;
-  border-radius: var(--radius-sm);
+  min-height: 32px;
   padding: 0 4px;
+}
+.rb-head { min-height: 28px; }
+.rb-day { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; font-size: var(--fs-caption); color: var(--text-muted); }
+.rb-day b { font-weight: 600; }
+.rb-day i { font-style: normal; font-variant-numeric: tabular-nums; }
+.rb-day.is-sel { color: var(--text); }
+.rb-day.is-sel b { font-weight: 800; }
+.rb-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0 4px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.rb-item {
+  border-radius: var(--radius-sm);
   transition: background var(--dur) ease;
 }
-.rb-name { justify-self: start; font-size: var(--fs-caption); font-weight: 700; color: var(--text-secondary); }
-.rb-head .section-sub { justify-self: start; white-space: nowrap; }
-.rb-day { font-size: var(--fs-caption); color: var(--text-muted); line-height: 1; }
-.rb-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--grey-dot); }
-.rb-note { margin-top: 4px; font-size: var(--fs-caption); color: var(--text-muted); text-align: center; }
-/* the row for the page you are on gets that page's tone */
-body.page-living .rb-living { background: var(--teal-area); }
-body.page-prod .rb-prod { background: var(--sky-area); }
-body.page-hobby .rb-hobby { background: var(--orange-area); }
-body.page-living .rb-living .rb-name { color: var(--teal); }
-body.page-prod .rb-prod .rb-name { color: var(--sky); }
-body.page-hobby .rb-hobby .rb-name { color: var(--orange); }
+.rb-item.is-open { background: color-mix(in srgb, var(--area, var(--accent)) 10%, transparent); }
+.rb-name {
+  justify-self: stretch;
+  min-width: 0;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  text-align: left;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: color var(--dur-fast) ease;
+}
+.rb-name:hover, .rb-item.is-open .rb-name { color: var(--text); }
+.rb-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-dot-btn {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* outlined = no activity that day; filled in the row's area colour = something was completed */
+.rb-dot {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ring-grey);
+  background: transparent;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-fast) ease;
+}
+.rb-dot.on { background: var(--area, var(--accent)); border-color: var(--area, var(--accent)); }
+.rb-dot-btn:hover .rb-dot { border-color: var(--text-secondary); transform: scale(1.12); }
+.rb-dot-btn:hover .rb-dot.on { border-color: var(--area, var(--accent)); }
+.rb-note { margin-top: 4px; padding: 0 4px 4px; font-size: var(--fs-caption); color: var(--text-muted); text-align: center; }
+
+/* fade for a freshly opened board / heatmap (review-board.js adds it only on the toggling render) */
+@keyframes rb-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.rb-enter { animation: rb-fade var(--dur) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .rb-enter { animation: none; } }
+
+/* ---------- heatmap (opens under its row) ---------- */
+.hm { padding: 2px 4px 8px; }
+.hm-body { display: flex; gap: 6px; max-width: 420px; margin: 0 auto; }
+.hm-main { flex: 1; min-width: 0; }
+.hm-months, .hm-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: 2px;
+}
+.hm-months { height: 12px; margin-bottom: 2px; font-size: var(--fs-caption); color: var(--text-muted); line-height: 1; }
+.hm-months span { white-space: nowrap; overflow: visible; }
+.hm-grid { grid-template-rows: repeat(7, auto); grid-auto-flow: column; }
+.hm-dows {
+  width: 10px;
+  display: grid;
+  grid-template-rows: 12px repeat(7, minmax(0, 1fr));
+  row-gap: 2px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-muted);
+  text-align: center;
+}
+.hm-dows span { display: flex; align-items: center; justify-content: center; }
+.hm-c {
+  display: block;
+  padding: 0;
+  border: none;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--card-2);
+}
+.hm-c.l1 { background: color-mix(in srgb, var(--area, var(--accent)) 28%, var(--card-2)); }
+.hm-c.l2 { background: color-mix(in srgb, var(--area, var(--accent)) 52%, var(--card-2)); }
+.hm-c.l3 { background: color-mix(in srgb, var(--area, var(--accent)) 76%, var(--card-2)); }
+.hm-c.l4 { background: var(--area, var(--accent)); }
+.hm-c.is-out { visibility: hidden; }
+.hm-c.is-today { box-shadow: inset 0 0 0 1.5px var(--text-secondary); }
+.hm-grid button.hm-c { cursor: pointer; transition: transform var(--dur-fast) ease; }
+.hm-grid button.hm-c:hover { transform: scale(1.12); }
+.hm-c.is-picked { box-shadow: 0 0 0 2px var(--text); position: relative; z-index: 1; }
+.hm-foot { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.hm-label { min-height: 16px; font-size: var(--fs-caption); line-height: 16px; color: var(--text-muted); text-align: center; transition: color var(--dur-fast) ease; }
+.hm-label.is-picked { color: var(--text); font-weight: 600; }
+.hm-legend { display: flex; align-items: center; justify-content: flex-end; gap: 3px; font-size: var(--fs-caption); color: var(--text-muted); }
+.hm-legend .hm-c { width: 10px; height: 10px; aspect-ratio: auto; display: inline-block; }
 
 /* ---------- area cards ---------- */
 .day-card { border-radius: var(--radius); padding: 12px; margin-top: 10px; }

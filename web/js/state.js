@@ -32,7 +32,11 @@ export var ui = {
   addArea: null,        /* last area chosen in the Add form on the All page */
   addProjectId: null,   /* last project chosen in the Add form */
   focusPending: false,  /* render() focuses [data-autofocus] once, then clears this */
-  focusSubtaskFor: null /* taskId whose add-subtask input should regain focus */
+  focusSubtaskFor: null, /* taskId whose add-subtask input should regain focus */
+
+  /* ---- M4: review board (review-board.js) ---- */
+  reviewRow: null,  /* row key ('p:<id>' | 'loose:<area>') whose heatmap is open; one at a time */
+  reviewCell: null  /* ISO date of the heatmap cell last tapped (its label shows under the grid) */
 };
 
 /* One active thing at a time. Every "this row is open or being edited" flag

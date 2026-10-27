@@ -2,7 +2,7 @@
 
 Productivity + hobby tracker. Sibling of GymBro (`C:\Users\Sir\Downloads\GymBro`):
 **same design language, gestures and architecture, different domain.**
-Last updated: 2026-10-26.
+Last updated: 2026-10-27.
 
 ---
 
@@ -31,7 +31,12 @@ Last updated: 2026-10-26.
 | 2026-10-26 | Backfill allowed: pick a past day in the day strip, then complete tasks there | Completion date stays editable. |
 | 2026-10-26 | UI = GymBro clone, dark only | Accents: All=violet `#8b7cf6`, Living=teal `#2fc4c9`, Prod=sky `#3ea6ff`, Hobby=orange `#f5920b`; red `#e5302c` = overdue / high priority. |
 | 2026-10-26 | Platform: PWA, mobile-first | |
-| 2026-10-26 | Git: local repo, Claude commits at milestones, no remote / no push without permission | |
+| 2026-10-26 | Git: Claude commits at milestones. Remote `origin` = github.com/Ron1024NonbiCoder/acad-bro; no push or deploy without the Product Owner's explicit OK each time | First push 2026-10-27 on request. |
+| 2026-10-27 | **Review board (M4) lives in the shell, not on its own page.** It sits above the area tabs on every page and follows the current tab: All = rows grouped by area (area label + dot), Living/Prod/Hobby = that area's rows | Rows = non-archived projects in order, plus a **Loose** row (first) only when the area has loose tasks. Areas with no rows are left out. Claude default; confirm. |
+| 2026-10-27 | Board columns = 7 days **ending on the day selected in the strip** (not always today). A dot is filled in the area colour if >=1 task or subtask completion that day, else outlined. Tapping a dot = `select-day` (jumps the strip) | Same count rule as `activeDays`: distinct tasks per day. |
+| 2026-10-27 | Tapping a row name opens its **12-week heatmap in place** (one row open at a time; tap again closes). Week columns, rows start on the Settings week-start day, newest week at the right, days after the selected day are blank. Levels 0/1/2/3/4+ = 4 tints of the row's area colour. Tapping a cell shows 'Tue, Aug 18 · 4 tasks done' in a label under the grid (no modal, no jump) | Heatmap window also ends on the selected day. Open row + picked cell are session-only UI state. |
+| 2026-10-27 | **Board can be folded** (title bar 'Activity'); the choice is remembered per device (`reviewShown` in settings.js, not synced). Default open | Claude addition: with many projects the board gets tall above the task list. Confirm or remove. |
+| 2026-10-27 | Review empty states: no rows -> 'Add a task to see activity here.'; rows but no activity in the 7 days -> 'Complete a task to see activity here.'; heatmap with nothing in 12 weeks -> same hint. Wording is neutral: no streak, goal or 'missed' language anywhere | |
 | 2026-10-26 | Storage shape (proposed): one doc `users/{uid}` written whole, like GymBro | Risk: 1 MB Firestore doc limit. Add a size guard (warn at 800 KB). Revisit if users accumulate large amounts of notes. |
 
 ## 3. Open decisions (waiting on Product Owner)
@@ -62,6 +67,7 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - `swipe-entry.js`: right = complete, left = action tray. `long-press.js`: hold = edit logged values.
 - Tests: `node scripts/test-*.mjs` (no framework). Needs Node ≥ 22.7 (ESM `.js` without package.json).
 - Dev server: `node scripts/serve.mjs` (PORT env, default 5180). `?page=prod` deep-links a page.
+- Review board: `review-board.js` (string builders) over pure `tasks-core.js` `activityIndex` (one pass for all rows) / `windowDays` / `heatmapGrid` / `reviewGroups` / `intensityLevel`. The fade-in on opening is a one-shot `.rb-enter` class (only on the render that opened it). Actions: `review-fold`, `review-row`, `review-cell` (events.js); dots reuse `select-day`.
 - Task logic: `tasks-core.js` (pure, node-tested), `tasks-actions.js` (one `commit()` = save + re-render + toast with Undo → Redo), `page-tasks.js` (render).
 - `activeDays(projectId, tasks, completions, endISO, n, area)` → `[{date, count, active}]`; count = distinct tasks with any completion (task or subtask) that day.
 - "Overdue" = one-off, not done, due before the **selected** day (not before today).
@@ -98,7 +104,7 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 - **M1: Shell & infrastructure** (not affected by the open decisions): scaffold, design tokens, header/tabs/bottom nav, day strip, toast + undo, haptics, local storage + dirty marker, service worker, manifest, test harness.
 - **M2: Projects & tasks CRUD**: swipe gestures, subtasks, due/priority, backfill.
 - **M3: Recurring tasks** (depends on the recurrence decision).
-- **M4: Review board + heatmaps.**
+- **M4: Review board + heatmaps.** (done 2026-10-27)
 - **M5: Auth + Firestore sync** (needs the Firebase project).
 - **M6: Polish, limits, Android wrapper.**
 
@@ -119,7 +125,7 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 |---|---|
 | done 2026-10-26 | M1 shell & infrastructure (tests 10+13 pass; serve on PORT, default 5180) |
 | done 2026-10-26 | M2 projects/tasks/subtasks CRUD + views, and M3 recurrence (tests 13+21+10 pass; headless smoke at 390px passes, `scratchpad/smoke.mjs`) |
-| next | M4 review board (still a grey placeholder) + per-project heatmaps; reuse `activeDays()` from tasks-core.js |
+| done 2026-10-27 | M4 review board + per-project heatmaps (`web/js/review-board.js`; pure logic in tasks-core.js; tests 13+28+10 pass; headless smoke at 390 and 360px passes) |
 | blocked on PO | M5 auth + sync (needs the console steps and sign-up decision in the Product Owner table) |
 | pending | M6 |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
@@ -145,6 +151,7 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 
 ## 8. Changelog
 
+- 2026-10-27: M4 built: Review board (7-day dots per project, loose row, All grouped by area) + in-place 12-week heatmaps, fold toggle, week-start aware. New `web/js/review-board.js`; `tasks-core.js` gained `activityIndex/windowDays/heatmapGrid/intensityLevel/reviewGroups` (+7 tests, test-tasks-core 21 -> 28); placeholder removed from shell.js; SW cache `acadbro-v1` -> `acadbro-v2`. Not deployed.
 - 2026-10-27: Firebase Hosting set up and deployed (hosting only): `firebase.json` + `.firebaserc` at repo root, `public: web`, `no-cache` on `/`, `index.html`, `sw.js`, `manifest.json`. Live at https://acadbro-166c4.web.app (title + headers verified). Redeploy: `cd <repo> && npx -y firebase-tools@latest deploy --only hosting`. Note `js/*` is cached 1h, so after a deploy a client may take up to an hour or a SW update to see new JS; bump the SW cache version on each release. Firestore/Auth config comes with M5.
 
 - 2026-10-26: Project started; decisions §2 recorded.

@@ -10,7 +10,7 @@
    indexCompletions(); the UI builds the Map once per render so a long list
    stays O(tasks + completions). */
 
-import { addDays, fmtISO, parseISO, WEEKDAY_SHORT } from './utils.js';
+import { addDays, fmtISO, parseISO, MONTH_SHORT, WEEKDAY_SHORT } from './utils.js';
 
 /* docs/DEV.md section 3: accepted input limits */
 export var LIMITS = { name: 80, note: 2000, subtasks: 30, projects: 200, tasks: 5000 };
@@ -208,6 +208,103 @@ export function activeDays(projectId, tasks, completions, endISO, n, area) {
     var count = per.has(date) ? per.get(date).size : 0;
     return { date: date, count: count, active: count > 0 };
   });
+}
+
+/* ---- review board & heatmaps (M4) ----
+   One pass over tasks + completions builds a per-row, per-day count for a whole
+   date range, so the board costs O(tasks + completions) per render instead of
+   one scan per project. Counting rule is activeDays' (distinct tasks, subtask
+   completions included), so the two always agree. */
+
+/* The board row a task belongs to: its project, or "loose in <area>". */
+export function activityKey(task) {
+  return task.projectId ? 'p:' + task.projectId : 'loose:' + task.area;
+}
+
+/* Map rowKey -> Map(date -> distinct-task count) for dates startISO..endISO
+   (inclusive; ISO strings compare chronologically). */
+export function activityIndex(tasks, completions, startISO, endISO) {
+  var keyOf = new Map();
+  tasks.forEach(function (t) { keyOf.set(t.id, activityKey(t)); });
+  var seen = new Set();
+  var index = new Map();
+  completions.forEach(function (c) {
+    if (c.date < startISO || c.date > endISO) return;
+    var key = keyOf.get(c.taskId);
+    if (key === undefined) return;
+    var once = c.taskId + '|' + c.date;
+    if (seen.has(once)) return;
+    seen.add(once);
+    var days = index.get(key);
+    if (!days) { days = new Map(); index.set(key, days); }
+    days.set(c.date, (days.get(c.date) || 0) + 1);
+  });
+  return index;
+}
+
+/* The `n` days ending at endISO (oldest first) from one row's date->count Map
+   (undefined = no activity): the same shape as activeDays. */
+export function windowDays(counts, endISO, n) {
+  var out = [];
+  var end = parseISO(endISO);
+  for (var i = n - 1; i >= 0; i--) {
+    var date = fmtISO(addDays(end, -i));
+    var count = (counts && counts.get(date)) || 0;
+    out.push({ date: date, count: count, active: count > 0 });
+  }
+  return out;
+}
+
+/* 0 = none, 1, 2, 3, 4 = four or more */
+export function intensityLevel(count) { return count >= 4 ? 4 : count > 0 ? count : 0; }
+
+/* Heatmap grid: `weeks` week-columns, the last one holding endISO; each column
+   has 7 cells starting on weekStartDow (0=Sun .. 6=Sat). Days after endISO are
+   inRange:false (drawn blank, not tappable). month = short month name on the
+   first column and wherever the month changes, else ''.
+   Returns { weeks: [{ month, cells: [{ date, count, level, inRange }] }], total }
+   where total = sum of the counts shown in the grid. */
+export function heatmapGrid(counts, endISO, weeks, weekStartDow) {
+  var end = parseISO(endISO);
+  var lastStart = addDays(end, -((end.getDay() - weekStartDow + 7) % 7));
+  var firstStart = addDays(lastStart, -7 * (weeks - 1));
+  var total = 0;
+  var prevMonth = -1;
+  var cols = [];
+  for (var w = 0; w < weeks; w++) {
+    var wkStart = addDays(firstStart, w * 7);
+    var cells = [];
+    for (var d = 0; d < 7; d++) {
+      var day = addDays(wkStart, d);
+      var date = fmtISO(day);
+      var inRange = date <= endISO;
+      var count = inRange ? ((counts && counts.get(date)) || 0) : 0;
+      total += count;
+      cells.push({ date: date, count: count, level: intensityLevel(count), inRange: inRange });
+    }
+    var m = wkStart.getMonth();
+    cols.push({ month: m !== prevMonth ? MONTH_SHORT[m] : '', cells: cells });
+    prevMonth = m;
+  }
+  return { weeks: cols, total: total };
+}
+
+/* Which rows the board shows: for each area, its non-archived projects in
+   order, plus a loose row (first) when the area has tasks outside any project.
+   Areas with no rows are left out. Returns
+   [{ area, rows: [{ key, projectId|null, name|null, area }] }]; name is null
+   for the loose row (the UI words it). */
+export function reviewGroups(areaIds, projects, tasks) {
+  return areaIds.map(function (area) {
+    var rows = [];
+    if (tasks.some(function (t) { return t.area === area && !t.projectId; })) {
+      rows.push({ key: 'loose:' + area, projectId: null, name: null, area: area });
+    }
+    sortByOrder(projects.filter(function (p) { return p.area === area && !p.archived; })).forEach(function (p) {
+      rows.push({ key: 'p:' + p.id, projectId: p.id, name: p.name, area: area });
+    });
+    return { area: area, rows: rows };
+  }).filter(function (g) { return g.rows.length > 0; });
 }
 
 /* ================= limits & validation ================= */

@@ -10,6 +10,7 @@ import { settleStripScroll } from './day-strip.js';
 import { closeTray, consumeSwipeEntryClick, runTrayAction } from './swipe-entry.js';
 import { consumeLongPressClick } from './long-press.js';
 import { tickLanded, tickNav, tickOff } from './haptics.js';
+import { pickReviewCell, toggleReviewBoard, toggleReviewRow } from './review-board.js';
 import { commitEditor, handleTaskAction, onDraftChange, onLimitedInput } from './tasks-actions.js';
 import { todayISO } from './utils.js';
 import {
@@ -20,7 +21,7 @@ import {
    handler: navigate = tickNav, commit (save / confirm / add) = tickLanded,
    destructive = tickOff. switch-page buzzes inside switchPage(). */
 function actionHaptic(action) {
-  if (/^(select-day|nav-today|open-settings|close-settings)$/.test(action)) tickNav();
+  if (/^(select-day|nav-today|open-settings|close-settings|review-fold|review-row)$/.test(action)) tickNav();
   else if (/^(remove-|delete-|confirm-delete-|confirm-remove-)/.test(action)) tickOff();
   else if (/^(save-|confirm-|add-|create-|set-|toggle-)/.test(action)) tickLanded();
 }
@@ -49,6 +50,9 @@ export function onAppClick(e) {
     case 'switch-page': switchPage(target.dataset.page); break;
     case 'select-day': selectDay(target.dataset.date); break;
     case 'nav-today': selectDay(todayISO()); break;
+    case 'review-fold': toggleReviewBoard(); render(); break;
+    case 'review-row': toggleReviewRow(target.dataset.key); render(); break;
+    case 'review-cell': pickReviewCell(target.dataset.date); render(); break;
     case 'open-settings': openSettings(); break;
     case 'close-settings': closeSettings(); break;
     case 'close-sheet': closeSheet(); break;

@@ -5,15 +5,16 @@
    index.html; this module only patches them (nav labels, body classes, the
    sheet body). */
 
-import { ui, clearActive, PAGE_IDS, AREA_IDS } from './state.js';
+import { ui, clearActive, PAGE_IDS } from './state.js';
 import { DB } from './storage.js';
-import { escapeHtml, addDays, parseISO, fmtISO, todayISO, todayDate, shortWeekdayDate, WEEKDAY_SHORT } from './utils.js';
+import { escapeHtml, addDays, parseISO, fmtISO, todayISO, shortWeekdayDate } from './utils.js';
 import { renderDayStrip, parkStrip } from './day-strip.js';
 import { renderSettingsView, importSheetHtml } from './page-settings.js';
 import { syncSheet, syncBackStack, setLayerCloser } from './layers.js';
 import { tickNav } from './haptics.js';
 import { closeTray } from './swipe-entry.js';
 import { renderTaskArea, manageSheetHtml } from './page-tasks.js';
+import { renderReviewBoard } from './review-board.js';
 import { cancelEditing, postRenderFocus } from './tasks-actions.js';
 
 /* Page order is state.js PAGE_IDS: the top tabs, the phone bottom bar
@@ -28,25 +29,6 @@ export function renderPageTabs() {
     return '<button type="button" class="page-tab tab-' + id + (ui.page === id ? ' active' : '') + '" data-action="switch-page" data-page="' + id + '"'
       + (ui.page === id ? ' aria-current="page"' : '') + '>' + escapeHtml(pageLabel(id)) + '</button>';
   }).join('') + '</nav>';
-}
-
-/* Placeholder for the 7-day review board (real data lands in M4): the last
-   seven days, one row per area, all neutral dots. Same grid the real one will
-   use, so nothing shifts when it fills in. */
-function renderReviewBoard() {
-  var today = todayDate();
-  var heads = '';
-  for (var i = 6; i >= 0; i--) heads += '<span class="rb-day">' + WEEKDAY_SHORT[addDays(today, -i).getDay()].charAt(0) + '</span>';
-  var rows = AREA_IDS.map(function (id) {
-    var dots = '';
-    for (var j = 0; j < 7; j++) dots += '<span class="rb-dot"></span>';
-    return '<div class="rb-row rb-' + id + '"><span class="rb-name">' + escapeHtml(pageLabel(id)) + '</span>' + dots + '</div>';
-  }).join('');
-  return '<section class="review-board" aria-label="Last 7 days">'
-    + '<div class="rb-row rb-head"><span class="section-sub">7 days</span>' + heads + '</div>'
-    + rows
-    + '<p class="rb-note">Completed tasks show up here.</p>'
-    + '</section>';
 }
 
 function dayHeading() {
