@@ -81,7 +81,8 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - `events.js` delegates `data-action` clicks.
 - `storage.js`: local-first, using localStorage key `acadbro-data-v1`, a DIRTY marker, a BASE (cloud `updatedAt`), and retry backoff of 2/5/15/30/60s.
 - `swipe-entry.js`: right = complete, left = action tray. `long-press.js`: hold = edit logged values.
-- Tests: `node scripts/test-*.mjs` (no framework). Needs Node ≥ 22.7 (ESM `.js` without package.json).
+- Tests: `node scripts/test-*.mjs` (no framework). Needs Node ≥ 22.7 (ESM `.js` without package.json). `test-rules.mjs` needs the Firestore emulator.
+- Headless smokes in `scripts/smoke/` (Chrome over CDP, local server only, Chrome's resolver blocks every other host; Firebase SDK mocked via CDP Fetch, never the live backend). Self-contained: `node scripts/smoke/check-icons.mjs`, `node scripts/smoke/smoke-m6.mjs` (27), `node scripts/smoke/smoke-motion.mjs` (32). With `node scripts/serve.mjs` running: `node scripts/smoke/smoke-m2.mjs <port>` (53), `smoke-m4.mjs <port>` (37), `W=390|360 node scripts/smoke/smoke-m5b.mjs <port>` (140, 1 known fail). Details, env (`CHROME_PATH`, `SMOKE_OUT`) and ports: `scripts/smoke/README.md`.
 - Dev server: `node scripts/serve.mjs` (PORT env, default 5180). `?page=prod` deep-links a page.
 - Review board: `review-board.js` (string builders) over pure `tasks-core.js` `activityIndex` (one pass for all rows) / `windowDays` / `heatmapGrid` / `reviewGroups` / `intensityLevel`. The fade-in on opening is a one-shot `.rb-enter` class (only on the render that opened it). Actions: `review-fold`, `review-row`, `review-cell` (events.js); dots reuse `select-day`.
 - Task logic: `tasks-core.js` (pure, node-tested), `tasks-actions.js` (one `commit()` = save + re-render + toast with Undo → Redo), `page-tasks.js` (render).
@@ -108,7 +109,7 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - Load verdict (`decideOnLoad`): not dirty or data belongs to another account -> apply cloud (local copy kept as recovery first when it belongs to no account/another); dirty and cloud == BASE -> upload local; dirty and cloud moved on -> conflict sheet. If not dirty and cloud == BASE nothing is swapped (no re-render).
 - Uploads are off until the account's doc has been fetched (`cloudReady`). Debounce 1 s; flush on `pagehide`/hidden; the dirty marker is cleared only when the acknowledged write's token still matches; retry 2/5/15/30/60 s, plus on `online` and on foreground. A write unacknowledged after 15 s is reported ("taking a while"), never waited on silently.
 - Messages are positive and each says what to do next (see `ERRORS` / `LOGIN_ERRORS` in auth.js). Log out: tries one last upload (4 s cap), keeps local data, and warns if edits are still unsynced.
-- Tests: `node scripts/test-sync-core.mjs` (29 as of 2026-10-27; storage 18). Headless smoke with a mocked Firebase SDK (login, save, rejected save + recovery, both conflict choices, restore + undo, logout, SDK unreachable) was run from a scratchpad script (not in the repo); it served the mock through CDP Fetch interception, so no live backend was touched.
+- Tests: `node scripts/test-sync-core.mjs` (29 as of 2026-10-27; storage 18). Headless smoke with a mocked Firebase SDK (login, save, rejected save + recovery, both conflict choices, restore + undo, logout, SDK unreachable) is `scripts/smoke/smoke-m5b.mjs` (moved from the scratchpad 2026-10-27); it serves the mock through CDP Fetch interception, so no live backend was touched.
 
 ### Data model (draft v1)
 
@@ -181,7 +182,7 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
   Accept: headless smoke with a `PerformanceObserver('layout-shift')` shows no shifts outside user-input windows in these three flows; screenshots before/after for the verifier.
 
 **Step 5: fresh-context verifier pass over M1–M5**
-- First move the headless smoke from the scratchpad into the repo as `scripts/smoke.mjs` (Chrome over CDP, mocked Firebase via Fetch interception, never the live backend) so later agents can rerun it.
+- (5a, done 2026-10-27: now `scripts/smoke/`, see its README.) First move the headless smoke from the scratchpad into the repo (Chrome over CDP, mocked Firebase via Fetch interception, never the live backend) so later agents can rerun it.
 - The verifier (a fresh agent that has not seen this work) checks every §2/§3 decision against the running app at 360 and 390px and reports gaps; Claude fixes them or lists them in §7.
 
 **Step 6: TWA**
@@ -199,13 +200,15 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | Status | Item |
 |---|---|
 | done 2026-10-26 | M1 shell & infrastructure (tests 10+13 pass; serve on PORT, default 5180) |
-| done 2026-10-26 | M2 projects/tasks/subtasks CRUD + views, and M3 recurrence (tests 13+21+10 pass; headless smoke at 390px passes, `scratchpad/smoke.mjs`) |
+| done 2026-10-26 | M2 projects/tasks/subtasks CRUD + views, and M3 recurrence (tests 13+21+10 pass; headless smoke at 390px passes, now `scripts/smoke/smoke-m2.mjs`) |
 | done 2026-10-27 | M4 review board + per-project heatmaps (`web/js/review-board.js`; pure logic in tasks-core.js; tests 13+28+10 pass; headless smoke at 390 and 360px passes) |
 | done 2026-10-27 (code) | M5 auth + sync built and machine-tested against a mocked SDK (tests 20+13+28+10 pass; rules checked on the Firestore emulator). **Not tested against the live backend**: needs the PO steps below, then a real two-device pass |
 | pending | M5 live test: log in, edit, confirm a second device/browser sees it; force a conflict (edit offline on both) and try both choices + Restore |
 | done 2026-10-27 | M6 steps 1–2 (tap-while-editing bug, toast vs sheet close button, import limits + 2 MB cap, login maxlength, fixed area labels). Tests: storage 22, sync-core 29, tasks-core 28, utils 10 pass; headless smoke at 390/360px passes (and fails on the pre-fix code). Not deployed |
 | done 2026-10-27 | M6 steps 3–4: PNG + maskable + apple-touch icons; transitions (editor expand, board fold, `swapWithFade` page changes, toast timings on tokens), reduced-motion honoured. Tests: storage 22, sync-core 29, tasks-core 28, utils 10 pass; step 1–2 smoke 27/27; motion smoke (390px, motion + reduced) passes, no layout shift without recent input in the 3 flows; Chrome reports no manifest/installability errors. Not deployed, not tried on a real phone |
-| planned 2026-10-27 | M6 steps 5–6, see §5 "M6 plan" |
+| done 2026-10-27 | M6 step 5a: smokes moved from scratchpads into `scripts/smoke/` (m2 53/53, m4 37/37, m5b 139/140 at 390 and 360, m6 27/27, motion 32/32, icons 4/4). The old pre-review `smoke-m5.mjs` was not moved (its mock predates the transactional save; `smoke-m5b.mjs` supersedes it) |
+| pending | `smoke-m5b.mjs` "recovery copy (CloudLiving label)" fails: it marks the cloud copy with an area label, which fixed labels (M6 step 2) now reset. Swap the marker (e.g. a cloud-only task title) in step 5 |
+| planned 2026-10-27 | M6 steps 5b–6, see §5 "M6 plan" |
 | pending | Toasts (top-right, up to 8 s) can cover the header gear / sync dot on phones (seen in the M6 step 4 smoke). Ask the PO: move the host down while the main view is shown, or accept |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
 | pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
@@ -236,9 +239,12 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | fixed in code 2026-10-27 (not deployed, not yet tested offline on a device) | Offline launch while signed in: the Firebase SDK was not in the service-worker cache, so sync stayed paused until online. `sw.js` now caches `gstatic.com/firebasejs/12.16.0/*` cache-first (SW cache `acadbro-v5`). Only works after the SDK has loaded once online. |
 | fixed in code 2026-10-27 (M6 step 1a; not deployed, not tried on a real phone) | While an editor was open, tapping another button committed on blur and re-rendered, so that tap was swallowed. Now a capture-phase `pointerdown` records the press (`pendingTap`), blur defers its commit, and the click commits first then runs the tapped action. Reproduced and fixed in a headless run at 390px (rename, note and add editors; Esc still cancels). |
 | fixed in code 2026-10-27 (M6 step 1b; not deployed) | Stacked toasts (top-right) could cover the Manage sheet's close button. While a sheet is open (`body.sheet-open`) the toast host sits at `right: 56px` (`styles.css`). Checked at 360 and 390px with 3 toasts and a tall Manage sheet: the close button is hit; the old position covers it. |
+| fixed in the smoke 2026-10-27 (M6 step 5a) | The M5 smoke's SDK mock could be bypassed: once `sw.js` controls the page it fetches `gstatic.com/firebasejs` itself, outside page-level CDP Fetch, so the real SDK loads. Seen when the smoke's click waits grew to 450 ms (gstatic hits 0, login failed); those runs may have sent a sign-in with the fake `me@example.com` / `secret1` to the live Auth endpoint (not verified; a wrong login cannot write data). Now: `Network.setBypassServiceWorker` + Chrome `--host-resolver-rules` so only localhost resolves. |
 | fixed 2026-10-26 | Review board header "LAST 7 DAYS" overlapped the first day column. Label is now "7 days" and the column is 64px. |
 
 ## 8. Changelog
+
+- 2026-10-27: **M6 step 5a: smokes in the repo.** New `scripts/smoke/` (`smoke-m2`, `smoke-m4`, `smoke-m5b`, `smoke-m6`, `smoke-motion`, `check-icons`, README). Scratchpad paths replaced by args/env (`SMOKE_OUT`, `CHROME_PATH`, `W`) and repo-relative defaults. Adaptations, no checks removed: click settle 120/150 -> 450 ms (M6 `swapWithFade` renders after a 160 ms fade); Chrome `--host-resolver-rules` offline guard on every smoke; m5b uses `Network.setBypassServiceWorker` because `sw.js` would otherwise fetch the SDK itself, outside Fetch interception. `web/`, `firestore.rules`, `firebase.json` untouched.
 
 - 2026-10-27: **M6 steps 3–4 done (not deployed).** Icons: `web/icon/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png` (rendered from icon.svg with headless Chrome; header sizes checked); manifest lists them next to the SVG; `<link rel="apple-touch-icon">`; SW SHELL precaches them. Motion: new `web/js/motion.js`; `shell.js swapWithFade()` for every page change; editor expand-in (`ui.editorEnter`, `.ed-enter`); animated board fold (`foldReviewBoard`); toast transitions use `--dur`/`--ease-out` and `toast.js` reads `--dur` for its exit timer. SW cache `acadbro-v6` -> `acadbro-v7`. `firestore.rules`, `firebase.json`, `auth.js` untouched. Known: while toasts are up (top-right) they can cover the header gear on phones; not changed here.
 
