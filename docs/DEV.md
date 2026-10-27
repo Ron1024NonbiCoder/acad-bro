@@ -63,11 +63,11 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - [x] 2026-10-26 **All page** = everything due, recurring, or done on the selected day, grouped by area.
 - [x] 2026-10-26 **Swipe-left tray**: Due / Priority / Repeat / Rename / Note / Move / Delete. A full swipe fires Due. Subtasks are added in the expanded view (tap the task).
 - [x] 2026-10-27 Monthly day D beyond the month's length goes to the last day.
-- [x] 2026-10-27 Areas: *fixed 3 areas, labels renamable.*
+- [x] 2026-10-27 Areas: **fixed 3 areas with fixed labels (Living / Prod / Hobby). No rename feature** (PO changed this 2026-10-27; earlier default was "labels renamable").
 - [ ] Timezone handling (travel across zones): **PO 2026-10-27: edge case, decide later.** Built as: follow the device timezone. Options when revisited: (2) fixed home timezone in the profile, synced; (3) device timezone + a toast when the timezone changes; plus an optional "day starts at HH:00" for late nights. Switching later only affects new records (stored `date` is never rewritten).
 - [x] 2026-10-26 Input limits accepted: name 80 chars, note 2000, 30 subtasks per task, 200 projects, 5000 tasks. Hitting a limit shows a toast (never a silent reject).
 - [x] 2026-10-27 TWA keystore: **Claude creates it and sets the password**; testing stage, so if it is lost the PO uninstalls and reinstalls the app. Keystore + password live outside the repo (see M6 step 6). Revisit before any Play Store release (use Play App Signing then).
-- [x] 2026-10-27 PO approved the M6 step 2 defaults: import over the limits is refused with an explanation (no truncation); import files over 2 MB refused with the reason; area rename in Settings > Areas, edited in place, max 20 chars, empty resets to the default, with Undo.
+- [x] 2026-10-27 PO approved the M6 step 2 defaults: import over the limits is refused with an explanation (no truncation); import files over 2 MB refused with the reason. (Area rename was approved, then **withdrawn** the same day: no rename feature.)
 - [x] 2026-10-27 Priority levels: *none / low / med / high.*
 - [x] 2026-10-27 Project archive vs delete: *both; archive hides the project but keeps its history.*
 - [x] 2026-10-27 Legal / disclaimer / privacy text: *none until public release.*
@@ -157,8 +157,8 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 **Step 2: limit gaps found in the scan**
 - Import (`storage.js` `parseImport` ~:241) does not check `LIMITS` (`tasks-core.js` ~:16). PO-approved: the preview sheet checks counts and lengths; if anything is over, the import is not applied and the sheet says exactly what is over, in positive wording ("This file has 5200 tasks. AcadBro holds up to 5000; please trim the file and import again."). No silent truncation. Also refuse files over 2 MB before parsing, with a message.
 - Login fields (`page-account.js` ~:156/:159): `maxlength` 254 (email) / 128 (password).
-- **Area label rename has no UI** although §3 says labels are renamable (PO confirmed). PO-approved: Settings > Areas, three rows edited in place (max 20 chars; empty resets to the default name), auto-save with a "Renamed" toast + Undo → Redo through the normal `commit()` path, so it syncs (areaLabels is cloud data, not device settings).
-  Accept: unit tests for the import checks in `test-storage.mjs`; smoke for rename + undo.
+- **Area labels are fixed (PO 2026-10-27: no rename feature).** Do not build a rename UI. But `storage.js` normalise (~:53) still merges `areaLabels` from loaded/imported data, so an import file or old cloud doc could show other labels. Claude default: normalise always uses the default labels (ignore `areaLabels` from input). Keep the `areaLabels` field in the data and cloud doc unchanged (the rules require it; no schema bump).
+  Accept: unit tests in `test-storage.mjs` for the import checks and for "custom areaLabels in input → default labels".
 
 **Step 3: PNG + maskable icons**
 - Today: only `web/icon/icon.svg`; the manifest has one SVG icon; no apple-touch-icon.
