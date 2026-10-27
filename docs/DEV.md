@@ -44,7 +44,7 @@ Last updated: 2026-10-27 (M5 code complete, not deployed).
 | 2026-10-27 | Sync status shown as a **header dot** (green synced / blue pending or syncing / orange offline, error, or needs a choice) plus the Settings > Account row ("Synced 2 min ago"). Errors toast once per kind (retries do not repeat), a "Back in sync" toast follows recovery | Red stays reserved for overdue/high priority. |
 | 2026-10-27 | Foreground re-check: when the app returns to the foreground it re-reads the cloud doc (max every 20 s, only when idle) and applies or asks if another device wrote | Claude addition to close GymBro's gap (two devices open at once = last writer wins until the next launch). Still no check at the moment of each save. |
 | 2026-10-27 | **PO confirmed** the M5 choices above (lazy SDK, recovery copy on first login, foreground re-check, single recovery slot) and the §3 defaults | |
-| 2026-10-27 | **No per-save cloud check** (two devices open at once = last writer wins until foreground re-check). PO: edge case, not now | Keep the bug row in §7 as a known gap. |
+| 2026-10-27 | Per-save cloud check: PO said "edge case, not now", but the code **already has it**: `auth.js` saves inside `runTransaction` that only commits while the doc carries the `rev` this device last saw (rules require `rev`). The §7 "known gap" row was stale; corrected | Found while verifying the live rules after deploy. |
 | 2026-10-27 | **Firebase SDK cached by the service worker** (cache-first, versioned URL, cached on first use) so an offline launch while signed in can still sync later | `sw.js` `SDK_PREFIX` must match `cloud.js` `SDK_BASE` when the SDK version is bumped. |
 | 2026-10-27 | **Android = TWA first** (Play Store wrapper over the hosted PWA, same UI) | M6. Needs `assetlinks.json` + PNG icons. |
 | 2026-10-27 | Firestore region `asia-northeast1` (Tokyo), Standard edition — set by PO | |
@@ -165,8 +165,8 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | open | Console: **create your account by hand** (Authentication > Users > Add user: email + password). There is no sign-up screen and no password reset, so keep the password safe. |
 | open | **Deploy the rules BEFORE the app**: `cd "C:\Users\Sir\Downloads\AcadBro" && npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes` then `--only hosting`. Claude has not deployed anything; say the word and it will. (`firebase.json` also carries `auth.providers.emailPassword`, which the CLI schema accepts; a plain `firebase deploy` would apply it too.) |
 | done 2026-10-27 | Confirmed the M5 decisions in section 2. |
-| open | Enable Auth: console > Authentication > Get started > Email/Password, then add your user (2026-10-27 the API still answered `CONFIGURATION_NOT_FOUND`). |
-| open | Allow the deploy (Claude's `firebase deploy` was blocked by the permission classifier 2026-10-27), or run it yourself. |
+| open | Auth: confirm Email/Password is enabled, then add your user (console > Authentication > Users > Add user). Checked after deploy 2026-10-27: Auth is set up, 0 users. |
+| done 2026-10-27 | Deploy approved; Claude deployed rules + indexes, then hosting (commit `193436d`). Verified: live title "AcadBro", `sw.js` = `acadbro-v5`, live rules = repo rules, anonymous read of `users/x` -> 403. Auth now answers (0 users). |
 | open | Timezone choice (§3). |
 | open | Hand-test sync on a real phone + desktop (conflict, offline edit, log out/in). |
 | done 2026-10-26 | Decided: **login-only** for now (like GymBro; accounts created by hand in the console). Sign-up can be added later. |
@@ -175,7 +175,7 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 
 | Status | Bug |
 |---|---|
-| open (known gap) | Sync is checked at launch and when the app returns to the foreground, not at the moment of each save. Two devices open at the same time can still overwrite each other (last writer wins) until the other one is next foregrounded. Fix if it bites: save inside a transaction that compares the cloud `updatedAt` with BASE. |
+| fixed in code (row corrected 2026-10-27; needs the live two-device test) | Two devices open at once could overwrite each other. Saves now run in a transaction gated on `rev`, so a stale device gets the conflict sheet instead. |
 | fixed in code 2026-10-27 (not deployed, not yet tested offline on a device) | Offline launch while signed in: the Firebase SDK was not in the service-worker cache, so sync stayed paused until online. `sw.js` now caches `gstatic.com/firebasejs/12.16.0/*` cache-first (SW cache `acadbro-v5`). Only works after the SDK has loaded once online. |
 | open | While an editor is open, tapping another button commits on blur and re-renders, so that first tap can be swallowed. (From the builder's report; not reproduced on a device.) |
 | open (minor) | Stacked toasts (top-right) can cover the Manage sheet's close button for a few seconds. Esc, scrim tap or drag-down still close it. |
