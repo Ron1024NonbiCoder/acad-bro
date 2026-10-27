@@ -155,9 +155,9 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
   Accept: at 360 and 390px with 3 toasts and Manage open, `elementFromPoint` at the close button's centre returns the button.
 
 **Step 2: limit gaps found in the scan**
-- Import (`storage.js` `parseImport` ~:241) does not check `LIMITS` (`tasks-core.js` ~:16). Claude default: the preview sheet checks counts and lengths; if anything is over, the import is not applied and the sheet says exactly what is over, in positive wording ("This file has 5200 tasks. AcadBro holds up to 5000; please trim the file and import again."). No silent truncation. Also refuse files over 2 MB before parsing, with a message.
+- Import (`storage.js` `parseImport` ~:241) does not check `LIMITS` (`tasks-core.js` ~:16). PO-approved: the preview sheet checks counts and lengths; if anything is over, the import is not applied and the sheet says exactly what is over, in positive wording ("This file has 5200 tasks. AcadBro holds up to 5000; please trim the file and import again."). No silent truncation. Also refuse files over 2 MB before parsing, with a message.
 - Login fields (`page-account.js` ~:156/:159): `maxlength` 254 (email) / 128 (password).
-- **Area label rename has no UI** although §3 says labels are renamable (PO confirmed). Claude default: Settings > Areas, three rows edited in place (max 20 chars; empty resets to the default name), auto-save with a "Renamed" toast + Undo → Redo through the normal `commit()` path, so it syncs (areaLabels is cloud data, not device settings).
+- **Area label rename has no UI** although §3 says labels are renamable (PO confirmed). PO-approved: Settings > Areas, three rows edited in place (max 20 chars; empty resets to the default name), auto-save with a "Renamed" toast + Undo → Redo through the normal `commit()` path, so it syncs (areaLabels is cloud data, not device settings).
   Accept: unit tests for the import checks in `test-storage.mjs`; smoke for rename + undo.
 
 **Step 3: PNG + maskable icons**
