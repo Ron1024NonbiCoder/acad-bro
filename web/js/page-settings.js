@@ -1,4 +1,4 @@
-/* Settings view (M1 stub): week start, haptics, JSON export / import.
+/* Settings view: week start, haptics, JSON export / import, account (page-account.js).
    Every change tells the user (toast); changes carry Undo, and undoing raises a
    Redo toast. Import is two-step (preview in the bottom sheet, then confirm),
    keeps a recovery copy of what it replaces, and is undoable. */
@@ -6,11 +6,13 @@
 import { ui } from './state.js';
 import { settings, setSetting, WEEK_START_LABELS } from './settings.js';
 import {
-  DB, buildExport, countsOf, dataSizeBytes, parseImport, replaceData, saveData, snapshotJSON
+  DB, buildExport, countsOf, dataSizeBytes, parseImport, replaceData, saveData, saveInfo, snapshotJSON
 } from './storage.js';
+import { downloadFile } from './download.js';
 import { render } from './shell.js';
 import { showToast } from './toast.js';
 import { escapeHtml, formatBytes } from './utils.js';
+import { renderAccountRows } from './page-account.js';
 
 export var IMPORT_BACKUP_KEY = 'acadbro-import-backup';
 
@@ -54,9 +56,7 @@ export function renderSettingsView() {
     + '</div>'
 
     + '<div class="settings-group-label">Account</div>'
-    + '<div class="settings-rows"><div class="settings-row is-muted"><span class="settings-row-text">'
-    + '<span class="settings-row-label">Local only</span>'
-    + '<span class="settings-row-hint">Your data stays on this device. Cloud sync comes later.</span></span></div></div>';
+    + '<div class="settings-rows" id="account-rows">' + renderAccountRows() + '</div>';
 }
 
 /* the import preview, shown in the bottom sheet */
@@ -99,16 +99,7 @@ export function toggleHaptics() {
 /* ================= export ================= */
 export function exportData() {
   var out = buildExport();
-  try {
-    var url = URL.createObjectURL(new Blob([out.json], { type: 'application/json' }));
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = out.filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-  } catch (err) {
+  if (!downloadFile(out.filename, out.json)) {
     showToast({ message: 'Export did not start. Try again, or use a different browser.', tone: 'warn' });
     return;
   }
@@ -134,7 +125,7 @@ function applyImport(data, prevJSON, redo) {
   try { localStorage.setItem(IMPORT_BACKUP_KEY, prevJSON); } catch (err) { /* quota: the Undo toast still holds it */ }
   replaceData(data);
   if (!saveData()) {
-    replaceData(JSON.parse(prevJSON));
+    if (!saveInfo.reloaded) replaceData(JSON.parse(prevJSON)); /* newer data from another tab stays */
     render();
     showToast({ message: 'Import not saved. Your current data is unchanged.', tone: 'warn' });
     return;

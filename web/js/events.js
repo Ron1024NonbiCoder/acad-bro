@@ -11,6 +11,10 @@ import { closeTray, consumeSwipeEntryClick, runTrayAction } from './swipe-entry.
 import { consumeLongPressClick } from './long-press.js';
 import { tickLanded, tickNav, tickOff } from './haptics.js';
 import { pickReviewCell, toggleReviewBoard, toggleReviewRow } from './review-board.js';
+import {
+  askAnswer, chooseVersion, confirmDiscardRecovery, confirmRestore, exportRecoveryCopy, logOut, openLogin,
+  openRelogin, openRestore, reloadAppClicked, retrySignInService, setDiscardConfirm, submitLogin, syncNowClicked
+} from './page-account.js';
 import { commitEditor, handleTaskAction, onDraftChange, onLimitedInput } from './tasks-actions.js';
 import { todayISO } from './utils.js';
 import {
@@ -22,8 +26,8 @@ import {
    destructive = tickOff. switch-page buzzes inside switchPage(). */
 function actionHaptic(action) {
   if (/^(select-day|nav-today|open-settings|close-settings|review-fold|review-row)$/.test(action)) tickNav();
-  else if (/^(remove-|delete-|confirm-delete-|confirm-remove-)/.test(action)) tickOff();
-  else if (/^(save-|confirm-|add-|create-|set-|toggle-)/.test(action)) tickLanded();
+  else if (/^(remove-|delete-|confirm-delete-|confirm-remove-|log-out$|discard-|confirm-discard-|ask-replace$)/.test(action)) tickOff();
+  else if (/^(save-|confirm-|add-|create-|set-|toggle-|submit-|conflict-keep-)/.test(action)) tickLanded();
 }
 
 export function onAppClick(e) {
@@ -60,12 +64,36 @@ export function onAppClick(e) {
     case 'toggle-haptics': toggleHaptics(); break;
     case 'export-data': exportData(); break;
     case 'confirm-import': confirmImport(); break;
+    case 'open-login': openLogin(); break;
+    case 'submit-login': submitLogin(); break;
+    case 'log-out': logOut(); break;
+    case 'sync-now': syncNowClicked(); break;
+    case 'conflict-keep-local': chooseVersion('local'); break;
+    case 'conflict-keep-cloud': chooseVersion('cloud'); break;
+    case 'relogin': openRelogin(); break;
+    case 'reload-app': reloadAppClicked(); break;
+    case 'retry-sdk': retrySignInService(); break;
+    case 'export-recovery': exportRecoveryCopy(); break;
+    case 'ask-export': exportRecoveryCopy(); break;
+    case 'ask-replace': askAnswer(true); break;
+    case 'ask-cancel': askAnswer(false); break;
+    case 'open-restore': openRestore(); break;
+    case 'confirm-restore': confirmRestore(); break;
+    case 'discard-recovery': setDiscardConfirm(true); break;
+    case 'cancel-discard-recovery': setDiscardConfirm(false); break;
+    case 'confirm-discard-recovery': confirmDiscardRecovery(); break;
     case 'tray-action': runTrayAction(target.dataset.tray, target.dataset.id); break;
     default: handleTaskAction(action, target.dataset); break;
   }
 }
 
 export function onKeyDown(e) {
+  /* Enter in the login form submits it */
+  if (e.key === 'Enter' && !e.isComposing && e.target && e.target.matches && e.target.matches('[data-login-field]')) {
+    e.preventDefault();
+    submitLogin();
+    return;
+  }
   var field = e.target && e.target.closest ? e.target.closest('[data-edit-input]') : null;
   if (field && e.key === 'Enter' && !e.isComposing) {
     /* Enter commits a one-line field (Add forms stay open for the next entry);

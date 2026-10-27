@@ -10,6 +10,7 @@ import { DB } from './storage.js';
 import { escapeHtml, addDays, parseISO, fmtISO, todayISO, shortWeekdayDate } from './utils.js';
 import { renderDayStrip, parkStrip } from './day-strip.js';
 import { renderSettingsView, importSheetHtml } from './page-settings.js';
+import { accountSheet } from './page-account.js';
 import { syncSheet, syncBackStack, setLayerCloser } from './layers.js';
 import { tickNav } from './haptics.js';
 import { closeTray } from './swipe-entry.js';
@@ -58,13 +59,19 @@ function syncNavLabels() {
 
 /* ================= sheet / layers ================= */
 function currentSheet() {
+  var acct = accountSheet(ui.sheet);
+  if (acct) return acct;
   if (ui.sheet && ui.sheet.type === 'import') return { title: 'Import data', html: importSheetHtml(ui.sheet) };
   if (ui.sheet && ui.sheet.type === 'manage') return { title: ui.sheet.area === 'all' ? 'Projects' : pageLabel(ui.sheet.area) + ' projects', html: manageSheetHtml(ui.sheet) };
   return null;
 }
 
+/* the conflict choice and the recovery-slot question cannot be dismissed: every
+   answer is safe, leaving them open is not an answer (a waiting login depends on it) */
+function sheetLocked() { return !!(ui.sheet && (ui.sheet.type === 'conflict' || ui.sheet.type === 'replace-recovery')); }
+
 export function closeSheet() {
-  if (!ui.sheet) return;
+  if (!ui.sheet || sheetLocked()) return;
   ui.sheet = null;
   ui.editing = null; /* an open project editor lived in the sheet */
   render();
@@ -93,7 +100,7 @@ export function closeTopLayer() {
 
 /* Back pressed (layers.js popped a tag): drop that layer's ui state */
 setLayerCloser(function (tag) {
-  if (tag === 'sheet') { ui.sheet = null; ui.editing = null; }
+  if (tag === 'sheet') { if (!sheetLocked()) { ui.sheet = null; ui.editing = null; } }
   else if (tag === 'settings') { ui.view = 'main'; ui.sheet = null; }
   render();
 });
@@ -119,7 +126,7 @@ export function render() {
   var root = document.getElementById('app-root');
   /* the bottom nav lives outside #app-root and takes its active item and its
      hidden-in-Settings state from these body classes -- no per-render DOM work */
-  document.body.className = 'page-' + ui.page + (ui.view === 'settings' ? ' view-settings' : '') + (ui.sheet ? ' sheet-open' : '');
+  document.body.className = 'page-' + ui.page + (ui.view === 'settings' ? ' view-settings' : '') + (ui.sheet ? ' sheet-open' : '') + (sheetLocked() ? ' sheet-locked' : '');
   if (ui.view === 'settings') {
     root.innerHTML = renderSettingsView();
   } else {

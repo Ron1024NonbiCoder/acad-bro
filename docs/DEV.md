@@ -2,7 +2,7 @@
 
 Productivity + hobby tracker. Sibling of GymBro (`C:\Users\Sir\Downloads\GymBro`):
 **same design language, gestures and architecture, different domain.**
-Last updated: 2026-10-27.
+Last updated: 2026-10-27 (M5 code complete, not deployed).
 
 ---
 
@@ -37,6 +37,17 @@ Last updated: 2026-10-27.
 | 2026-10-27 | Tapping a row name opens its **12-week heatmap in place** (one row open at a time; tap again closes). Week columns, rows start on the Settings week-start day, newest week at the right, days after the selected day are blank. Levels 0/1/2/3/4+ = 4 tints of the row's area colour. Tapping a cell shows 'Tue, Aug 18 · 4 tasks done' in a label under the grid (no modal, no jump) | Heatmap window also ends on the selected day. Open row + picked cell are session-only UI state. |
 | 2026-10-27 | **Board can be folded** (title bar 'Activity'); the choice is remembered per device (`reviewShown` in settings.js, not synced). Default open | Claude addition: with many projects the board gets tall above the task list. Confirm or remove. |
 | 2026-10-27 | Review empty states: no rows -> 'Add a task to see activity here.'; rows but no activity in the 7 days -> 'Complete a task to see activity here.'; heatmap with nothing in 12 weeks -> same hint. Wording is neutral: no streak, goal or 'missed' language anywhere | |
+| 2026-10-27 | **M5 sync = GymBro model, login-only.** Email+password login (no sign-up UI, no password reset; accounts are made by hand in the console). Login turns sync on; logged out = pure local, as before | Claude built it; confirm the choices below. |
+| 2026-10-27 | **Firebase SDK is loaded lazily**, only if this browser has signed in before (`acadbro-auth-hint`) or the user taps Log in. A never-signed-in or offline user makes zero network calls | Claude choice (GymBro loads the SDK on every launch). Offline launch while signed in: the SDK is not cached by the service worker, so sync pauses (toast + Settings status) until the CDN is reachable; local edits stay marked dirty and sync later. |
+| 2026-10-27 | **Data on this device is never replaced without a recovery copy.** First login onto an account that already has cloud data, or switching to another account: the local data is saved to the recovery slot first; if it cannot be stored (quota) nothing is replaced and the user is told | Claude addition over GymBro (GymBro lets the cloud win silently). |
+| 2026-10-27 | Conflict = bottom sheet that cannot be dismissed ("Keep this device" / "Keep cloud copy"); the losing side goes to a **single recovery slot** (`acadbro-conflict-backup`), shown in Settings > Account > Recovery copy. Restoring SWAPS (the data it replaces becomes the new recovery copy), so Undo is the same operation | One slot: a newer conflict replaces the older copy (the toast says so). |
+| 2026-10-27 | Sync status shown as a **header dot** (green synced / blue pending or syncing / orange offline, error, or needs a choice) plus the Settings > Account row ("Synced 2 min ago"). Errors toast once per kind (retries do not repeat), a "Back in sync" toast follows recovery | Red stays reserved for overdue/high priority. |
+| 2026-10-27 | Foreground re-check: when the app returns to the foreground it re-reads the cloud doc (max every 20 s, only when idle) and applies or asks if another device wrote | Claude addition to close GymBro's gap (two devices open at once = last writer wins until the next launch). Still no check at the moment of each save. |
+| 2026-10-27 | **PO confirmed** the M5 choices above (lazy SDK, recovery copy on first login, foreground re-check, single recovery slot) and the §3 defaults | |
+| 2026-10-27 | **No per-save cloud check** (two devices open at once = last writer wins until foreground re-check). PO: edge case, not now | Keep the bug row in §7 as a known gap. |
+| 2026-10-27 | **Firebase SDK cached by the service worker** (cache-first, versioned URL, cached on first use) so an offline launch while signed in can still sync later | `sw.js` `SDK_PREFIX` must match `cloud.js` `SDK_BASE` when the SDK version is bumped. |
+| 2026-10-27 | **Android = TWA first** (Play Store wrapper over the hosted PWA, same UI) | M6. Needs `assetlinks.json` + PNG icons. |
+| 2026-10-27 | Firestore region `asia-northeast1` (Tokyo), Standard edition — set by PO | |
 | 2026-10-26 | Storage shape (proposed): one doc `users/{uid}` written whole, like GymBro | Risk: 1 MB Firestore doc limit. Add a size guard (warn at 800 KB). Revisit if users accumulate large amounts of notes. |
 
 ## 3. Open decisions (waiting on Product Owner)
@@ -49,14 +60,15 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - [x] 2026-10-26 **Task list has switchable views**: *Grouped by project* (collapsible project cards; loose tasks at top) / *Flat* (sorted by due, then priority, with a project chip). The choice is remembered per area, per device.
 - [x] 2026-10-26 **All page** = everything due, recurring, or done on the selected day, grouped by area.
 - [x] 2026-10-26 **Swipe-left tray**: Due / Priority / Repeat / Rename / Note / Move / Delete. A full swipe fires Due. Subtasks are added in the expanded view (tap the task).
-- [ ] Monthly day D beyond the month's length goes to the last day (Claude default; confirm).
-- [ ] Can areas be renamed / added? *Fixed 3 areas, labels renamable.*
+- [x] 2026-10-27 Monthly day D beyond the month's length goes to the last day.
+- [x] 2026-10-27 Areas: *fixed 3 areas, labels renamable.*
+- [ ] Timezone handling (travel across zones): explained to PO 2026-10-27, waiting on choice. *Default: follow the device timezone.*
 - [x] 2026-10-26 Input limits accepted: name 80 chars, note 2000, 30 subtasks per task, 200 projects, 5000 tasks. Hitting a limit shows a toast (never a silent reject).
-- [ ] Priority levels: *none / low / med / high.*
-- [ ] Project archive vs delete: *both; archive hides the project but keeps its history.*
-- [ ] Legal / disclaimer / privacy text: *none until public release.*
-- [ ] App name / branding: *"AcadBro" for now.*
-- [ ] Sync conflict handling: *GymBro model (dirty marker + base timestamp; a true conflict asks the user and keeps a recovery copy).*
+- [x] 2026-10-27 Priority levels: *none / low / med / high.*
+- [x] 2026-10-27 Project archive vs delete: *both; archive hides the project but keeps its history.*
+- [x] 2026-10-27 Legal / disclaimer / privacy text: *none until public release.*
+- [x] 2026-10-27 App name / branding: *"AcadBro" for now.*
+- [x] 2026-10-27 Sync conflict handling: GymBro model (dirty marker + base timestamp; a true conflict asks the user and keeps a recovery copy). Built in M5, see section 4.
 
 ## 4. Architecture (mirrors GymBro)
 
@@ -77,6 +89,16 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - Tray buttons are 40px (7 × 52px doesn't fit 360px phones).
 - `storage.js` reports save/size errors via `hooks` (testable in node). Corrupt local data is copied to `acadbro-data-corrupt` + warning toast. Import = preview sheet → confirm, backup in `acadbro-import-backup`, Undo.
 - Device-local settings (week start, haptics) live in `settings.js` and are never synced.
+
+### Cloud sync (M5, built 2026-10-27)
+
+- Files: `sync-core.js` (pure, node-tested: markers, BASE, `decideOnLoad`, retry delays, recovery copy, `syncInfo`), `cloud.js` (live `sync` status object + lazy loader + the actions the UI calls; no Firebase), `auth.js` (Firebase: login/logout, `cloudSave`, load, conflict, retry; dynamic-imported, SDK from `gstatic.com/firebasejs/12.16.0`), `page-account.js` (Settings > Account rows, header dot, login / conflict / restore sheets). Seam in `storage.js`: `cloud.onLocalChange` (set by auth.js while signed in) and `applyCloudData()` (swaps DB and writes localStorage **without** marking dirty).
+- localStorage keys: `acadbro-dirty` (token per local save), `acadbro-sync-base` (cloud `updatedAt` ms last seen), `acadbro-last-sync`, `acadbro-owner-uid` (whose data this is), `acadbro-auth-hint`, `acadbro-conflict-backup`.
+- Cloud doc `users/{uid}`: `schema, areaLabels, projects, tasks, completions, updatedAt` (server timestamp). `auth.js buildPayload()` and `firestore.rules` must list the same fields (maintenance contract in the rules file: deploy rules first).
+- Load verdict (`decideOnLoad`): not dirty or data belongs to another account -> apply cloud (local copy kept as recovery first when it belongs to no account/another); dirty and cloud == BASE -> upload local; dirty and cloud moved on -> conflict sheet. If not dirty and cloud == BASE nothing is swapped (no re-render).
+- Uploads are off until the account's doc has been fetched (`cloudReady`). Debounce 1 s; flush on `pagehide`/hidden; the dirty marker is cleared only when the acknowledged write's token still matches; retry 2/5/15/30/60 s, plus on `online` and on foreground. A write unacknowledged after 15 s is reported ("taking a while"), never waited on silently.
+- Messages are positive and each says what to do next (see `ERRORS` / `LOGIN_ERRORS` in auth.js). Log out: tries one last upload (4 s cap), keeps local data, and warns if edits are still unsynced.
+- Tests: `node scripts/test-sync-core.mjs` (20). Headless smoke with a mocked Firebase SDK (login, save, rejected save + recovery, both conflict choices, restore + undo, logout, SDK unreachable) was run from a scratchpad script (not in the repo); it served the mock through CDP Fetch interception, so no live backend was touched.
 
 ### Data model (draft v1)
 
@@ -105,7 +127,7 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 - **M2: Projects & tasks CRUD**: swipe gestures, subtasks, due/priority, backfill.
 - **M3: Recurring tasks** (depends on the recurrence decision).
 - **M4: Review board + heatmaps.** (done 2026-10-27)
-- **M5: Auth + Firestore sync** (needs the Firebase project).
+- **M5: Auth + Firestore sync** (done in code 2026-10-27; needs the console steps and a rules deploy before it can work live).
 - **M6: Polish, limits, Android wrapper.**
 
 ### M5 plan (from GymBro scan, 2026-10-26)
@@ -126,7 +148,8 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | done 2026-10-26 | M1 shell & infrastructure (tests 10+13 pass; serve on PORT, default 5180) |
 | done 2026-10-26 | M2 projects/tasks/subtasks CRUD + views, and M3 recurrence (tests 13+21+10 pass; headless smoke at 390px passes, `scratchpad/smoke.mjs`) |
 | done 2026-10-27 | M4 review board + per-project heatmaps (`web/js/review-board.js`; pure logic in tasks-core.js; tests 13+28+10 pass; headless smoke at 390 and 360px passes) |
-| blocked on PO | M5 auth + sync (needs the console steps and sign-up decision in the Product Owner table) |
+| done 2026-10-27 (code) | M5 auth + sync built and machine-tested against a mocked SDK (tests 20+13+28+10 pass; rules checked on the Firestore emulator). **Not tested against the live backend**: needs the PO steps below, then a real two-device pass |
+| pending | M5 live test: log in, edit, confirm a second device/browser sees it; force a conflict (edit offline on both) and try both choices + Restore |
 | pending | M6 |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
 | pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
@@ -138,19 +161,29 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | open | Answer §3 open decisions |
 | done 2026-10-26 | Firebase project created: `acadbro-166c4` (hosting site `acadbro-166c4`). Claude registered web app `AcadBro Web` (appId `1:395278719258:web:52c74d6abe52f6acf174a3`). |
 | open | Console: enable **Email/Password** sign-in (Authentication → Sign-in method). |
-| open | Console: create the **Firestore database** (pick region; GymBro uses `nam5`; can't change later). |
+| done 2026-10-26 | Firestore database `(default)` created: Standard edition, `asia-northeast1` (Tokyo), free tier. Checked 2026-10-27: live rules were still the deny-all default; local `firestore.rules` validates and passes 19/19 emulator checks. |
+| open | Console: **create your account by hand** (Authentication > Users > Add user: email + password). There is no sign-up screen and no password reset, so keep the password safe. |
+| open | **Deploy the rules BEFORE the app**: `cd "C:\Users\Sir\Downloads\AcadBro" && npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes` then `--only hosting`. Claude has not deployed anything; say the word and it will. (`firebase.json` also carries `auth.providers.emailPassword`, which the CLI schema accepts; a plain `firebase deploy` would apply it too.) |
+| done 2026-10-27 | Confirmed the M5 decisions in section 2. |
+| open | Enable Auth: console > Authentication > Get started > Email/Password, then add your user (2026-10-27 the API still answered `CONFIGURATION_NOT_FOUND`). |
+| open | Allow the deploy (Claude's `firebase deploy` was blocked by the permission classifier 2026-10-27), or run it yourself. |
+| open | Timezone choice (§3). |
+| open | Hand-test sync on a real phone + desktop (conflict, offline edit, log out/in). |
 | done 2026-10-26 | Decided: **login-only** for now (like GymBro; accounts created by hand in the console). Sign-up can be added later. |
 
 ## 7. Serious bugs
 
 | Status | Bug |
 |---|---|
+| open (known gap) | Sync is checked at launch and when the app returns to the foreground, not at the moment of each save. Two devices open at the same time can still overwrite each other (last writer wins) until the other one is next foregrounded. Fix if it bites: save inside a transaction that compares the cloud `updatedAt` with BASE. |
+| fixed in code 2026-10-27 (not deployed, not yet tested offline on a device) | Offline launch while signed in: the Firebase SDK was not in the service-worker cache, so sync stayed paused until online. `sw.js` now caches `gstatic.com/firebasejs/12.16.0/*` cache-first (SW cache `acadbro-v5`). Only works after the SDK has loaded once online. |
 | open | While an editor is open, tapping another button commits on blur and re-renders, so that first tap can be swallowed. (From the builder's report; not reproduced on a device.) |
 | open (minor) | Stacked toasts (top-right) can cover the Manage sheet's close button for a few seconds. Esc, scrim tap or drag-down still close it. |
 | fixed 2026-10-26 | Review board header "LAST 7 DAYS" overlapped the first day column. Label is now "7 days" and the column is 64px. |
 
 ## 8. Changelog
 
+- 2026-10-27: **M5 built (not deployed).** New `cloud.js`, `auth.js`, `page-account.js`; `sync-core.js` gained `saveConflictBackup/readConflictBackup/clearConflictBackup/syncInfo/dirtySinceMs/readOwner/writeOwner/readAuthHint/writeAuthHint`; `storage.applyCloudData` now persists without marking dirty; Settings > Account (log in / status / sync now / log out / recovery copy), header sync dot, login + conflict + restore sheets (conflict sheet locked: `layers.js`, `shell.js`); `events.js` actions + Enter in the login form. New `firestore.rules` (owner-only, delete denied, field allow-list; caps projects 1000 / tasks 20000 / completions 50000 / areaLabels 10, all far above the UI limits because Firestore's 1 MiB doc limit binds first), `firestore.indexes.json`, `firebase.json` (+auth emailPassword, +firestore; hosting block unchanged). SW cache `acadbro-v2` -> `acadbro-v3`. Tests: new test-sync-core (20); storage 13, tasks-core 28, utils 10 unchanged and passing. Rules loaded on the local Firestore emulator and exercised over REST (owner create/update/read ok; other user, extra field, missing field, schema 2, wrong types, over-cap, delete, other collections all denied).
 - 2026-10-27: M4 built: Review board (7-day dots per project, loose row, All grouped by area) + in-place 12-week heatmaps, fold toggle, week-start aware. New `web/js/review-board.js`; `tasks-core.js` gained `activityIndex/windowDays/heatmapGrid/intensityLevel/reviewGroups` (+7 tests, test-tasks-core 21 -> 28); placeholder removed from shell.js; SW cache `acadbro-v1` -> `acadbro-v2`. Not deployed.
 - 2026-10-27: Firebase Hosting set up and deployed (hosting only): `firebase.json` + `.firebaserc` at repo root, `public: web`, `no-cache` on `/`, `index.html`, `sw.js`, `manifest.json`. Live at https://acadbro-166c4.web.app (title + headers verified). Redeploy: `cd <repo> && npx -y firebase-tools@latest deploy --only hosting`. Note `js/*` is cached 1h, so after a deploy a client may take up to an hour or a SW update to see new JS; bump the SW cache version on each release. Firestore/Auth config comes with M5.
 

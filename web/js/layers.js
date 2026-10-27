@@ -100,6 +100,7 @@ var drag = null;
 export function onSheetPointerDown(e) {
   var grip = e.target.closest && e.target.closest('.sheet-grip');
   if (!grip || !sheetOpen) return;
+  if (document.body.classList.contains('sheet-locked')) return; /* the conflict choice cannot be dragged away */
   var frame = host().querySelector('.sheet');
   drag = { y0: e.clientY, dy: 0, frame: frame, h: frame.offsetHeight, id: e.pointerId };
   frame.classList.add('is-dragging');

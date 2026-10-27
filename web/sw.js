@@ -8,9 +8,14 @@
    content-hashed), so a cache-first worker would pin stale JS after every
    deploy; instead, online users always get the freshly deployed code and the
    cache is only a fallback when the network is unavailable. Cross-origin
-   requests (Firebase, later) are never intercepted. */
+   requests are never intercepted, except the Firebase SDK files (see below).
 
-const CACHE = 'acadbro-v2';
+   The SDK URLs carry their version (must match SDK_BASE in js/cloud.js), so
+   they are immutable: cache-first, cached on first use. This lets a signed-in
+   user who launches offline still load the SDK. */
+
+const CACHE = 'acadbro-v5';
+const SDK_PREFIX = 'https://www.gstatic.com/firebasejs/12.16.0/';
 
 /* Precached resiliently so one missing URL can't abort install. JS modules get
    cached on first visit by the fetch handler, so this list need not track
@@ -43,8 +48,22 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
+  if (req.url.startsWith(SDK_PREFIX)) {
+    event.respondWith((async () => {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      const fresh = await fetch(req);
+      if (fresh && fresh.status === 200) {
+        const cache = await caches.open(CACHE);
+        cache.put(req, fresh.clone());
+      }
+      return fresh;
+    })());
+    return;
+  }
+
   const url = new URL(req.url);
-  /* Same-origin only: never touch Firebase or any CDN. */
+  /* Same-origin only: never touch any other CDN or Firebase API. */
   if (url.origin !== self.location.origin) return;
   /* Firebase Hosting reserved paths -- leave alone. */
   if (url.pathname.startsWith('/__/')) return;

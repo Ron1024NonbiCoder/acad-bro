@@ -206,4 +206,80 @@ test('sync-core decisions', function () {
   assert.equal(C.retryDelay(99), 60000);
 });
 
-if (!process.exitCode) console.log('test-storage: ' + n + ' tests passed');
+if (!process.exitCode) test('isStaleWrite: only data stored by someone else, newer than what this tab knew', function () {
+  assert.equal(S.isStaleWrite('2026-10-27T10:00:00.000Z', '2026-10-27T10:00:00.000Z'), false, 'unchanged');
+  assert.equal(S.isStaleWrite('2026-10-27T10:00:00.000Z', '2026-10-27T10:00:05.000Z'), true, 'another tab saved');
+  assert.equal(S.isStaleWrite(null, '2026-10-27T10:00:05.000Z'), true, 'this tab started empty');
+  assert.equal(S.isStaleWrite('2026-10-27T10:00:00.000Z', null), false, 'nothing stored: nothing to protect');
+  assert.equal(S.isStaleWrite(null, null), false);
+  assert.equal(S.isStaleWrite('2026-10-27T10:00:05.000Z', '2026-10-27T10:00:00.000Z'), false, 'older is never newer');
+});
+
+test('two tabs: a stale tab does not overwrite the other tab, it loads its data and says so', function () {
+  S.replaceData(S.defaultData());
+  assert.equal(S.saveData(), true); /* this tab saved: it knows the stamp */
+  var infos = [];
+  S.hooks.onExternalChange = function (i) { infos.push(i); };
+  /* another tab saves newer data */
+  var other = S.defaultData();
+  other.tasks = [{ id: 'from-tab-2' }];
+  other.updatedAt = '2999-01-01T00:00:00.000Z';
+  mem.set(S.STORAGE_KEY, JSON.stringify(other));
+  S.DB.tasks.push({ id: 'my-edit' });
+  assert.equal(S.saveData(), false, 'the stale write is refused');
+  assert.equal(S.saveInfo.reloaded, true);
+  assert.deepEqual(S.DB.tasks.map(function (t) { return t.id; }), ['from-tab-2'], 'memory now shows the other tab');
+  assert.equal(JSON.parse(mem.get(S.STORAGE_KEY)).tasks[0].id, 'from-tab-2', 'storage untouched');
+  assert.deepEqual(infos, [{ lostEdit: true }], 'the user is told the edit was not applied');
+  /* after loading, this tab is current again and saves normally */
+  S.DB.tasks.push({ id: 'second-try' });
+  assert.equal(S.saveData(), true);
+  assert.equal(S.saveInfo.reloaded, false);
+  assert.equal(JSON.parse(mem.get(S.STORAGE_KEY)).tasks.length, 2);
+  S.hooks.onExternalChange = null;
+});
+
+test('storage event: the other tab data is loaded; unrelated keys and own writes are ignored', function () {
+  S.replaceData(S.defaultData());
+  S.saveData();
+  var infos = [];
+  S.hooks.onExternalChange = function (i) { infos.push(i); };
+  assert.equal(S.onStorageEvent({ key: 'acadbro-dirty' }), false, 'another key');
+  assert.equal(S.onStorageEvent({ key: S.STORAGE_KEY }), false, 'nothing newer stored (our own write echoing)');
+  var other = S.defaultData();
+  other.projects = [{ id: 'p-other' }];
+  other.updatedAt = '2999-01-01T00:00:00.000Z';
+  mem.set(S.STORAGE_KEY, JSON.stringify(other));
+  assert.equal(S.onStorageEvent({ key: S.STORAGE_KEY }), true);
+  assert.equal(S.DB.projects[0].id, 'p-other');
+  assert.deepEqual(infos, [{ lostEdit: false }]);
+  assert.equal(S.onStorageEvent({ key: S.STORAGE_KEY }), false, 'now current: a repeat does nothing');
+  S.hooks.onExternalChange = null;
+});
+
+test('syncDBFromStorage pulls newer data from another tab before sync reads the DB', function () {
+  S.replaceData(S.defaultData());
+  S.saveData();
+  assert.equal(S.syncDBFromStorage(), false);
+  var other = S.defaultData();
+  other.tasks = [{ id: 'newer' }];
+  other.updatedAt = '2999-01-01T00:00:00.000Z';
+  mem.set(S.STORAGE_KEY, JSON.stringify(other));
+  assert.equal(S.syncDBFromStorage(), true);
+  assert.equal(S.DB.tasks[0].id, 'newer');
+});
+
+test('a tab that never read the stored data does not overwrite what another tab created', function () {
+  S.replaceData(S.defaultData());
+  S.saveData();
+  mem.clear();
+  var other = S.defaultData();
+  other.tasks = [{ id: 'tab2' }];
+  other.updatedAt = '2999-01-01T00:00:00.000Z';
+  mem.set(S.STORAGE_KEY, JSON.stringify(other));
+  S.DB.tasks.push({ id: 'mine' });
+  S.saveData();
+  assert.ok(JSON.parse(mem.get(S.STORAGE_KEY)).tasks.some(function (t) { return t.id === 'tab2'; }), 'the other tab task survives');
+});
+
+console.log('test-storage: ' + n + ' tests passed');

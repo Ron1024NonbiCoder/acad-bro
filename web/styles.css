@@ -1095,3 +1095,53 @@ body.page-hobby .bottom-nav-item[data-page="hobby"] .bottom-nav-dot { opacity: 1
 .confirm-box { margin-top: 8px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--red-area); font-size: var(--fs-sm); }
 .confirm-box .editor-actions { flex-wrap: wrap; }
 .add-project-btn { margin-top: 6px; }
+
+/* ---------- account & sync (page-account.js) ---------- */
+.settings-row.is-static { cursor: default; }
+.settings-row.is-static:active { background: var(--card); }
+.settings-row-hint.is-warn, .settings-note.is-warn { color: var(--orange); }
+.account-email { overflow-wrap: anywhere; }
+/* the sync dot: header button and the Account row share one fill */
+.sync-dot-fill {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--grey-dot);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.sync-dot-fill.is-synced { background: var(--green); }
+.sync-dot-fill.is-pending, .sync-dot-fill.is-syncing, .sync-dot-fill.is-loading { background: var(--sky); }
+.sync-dot-fill.is-syncing, .sync-dot-fill.is-loading { animation: sync-pulse 1.2s ease-in-out infinite; }
+.sync-dot-fill.is-offline, .sync-dot-fill.is-error, .sync-dot-fill.is-attention, .sync-dot-fill.is-paused {
+  background: var(--orange);
+  box-shadow: 0 0 0 3px var(--orange-soft);
+}
+@keyframes sync-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .sync-dot-fill.is-syncing, .sync-dot-fill.is-loading { animation: none; }
+}
+/* login form (in the bottom sheet) */
+.login-form { display: flex; flex-direction: column; }
+.field-label { margin-top: 10px; font-size: var(--fs-caption); font-weight: 700; letter-spacing: 0.04em; color: var(--text-secondary); }
+.login-form input { width: 100%; min-width: 0; font-size: var(--fs-base); }
+/* reserved line so an error appearing does not push the buttons down */
+.form-error { min-height: 40px; margin-top: 8px; font-size: var(--fs-sm); line-height: 1.4; color: var(--orange); }
+/* the conflict choice: two side-by-side cards */
+.conflict-cards { display: flex; gap: 8px; margin-top: 10px; }
+.conflict-card {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  font-size: var(--fs-sm);
+}
+.conflict-card-title { font-weight: 700; font-size: var(--fs-base); }
+.conflict-when { font-size: var(--fs-caption); color: var(--text-secondary); }
+/* no way out but a choice: the close affordances are hidden */
+body.sheet-locked .sheet-close, body.sheet-locked .sheet-handle { visibility: hidden; }

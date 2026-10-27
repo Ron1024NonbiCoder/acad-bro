@@ -1,0 +1,97 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model  (schema v1)  -- see docs/DEV.md section 4
+// ===============================================================
+//
+// Collection: users
+// Document ID: {uid} (must equal request.auth.uid)
+//
+// Fields (all required; written whole by web/js/auth.js cloudSave()):
+//   - schema: number (must be 1)
+//   - areaLabels: map (max 10 keys) - { living, prod, hobby } -> display name
+//   - projects: list (max 1000)     - { id, area, name, note, archived, order,
+//                                       createdAt, updatedAt }
+//   - tasks: list (max 20000)       - { id, area, projectId, title, note, priority,
+//                                       due, recur, subtasks[], order, createdAt,
+//                                       updatedAt }
+//   - completions: list (max 50000) - { id, taskId, subtaskId, date, at }
+//   - updatedAt: timestamp          - server write time (serverTimestamp())
+//   - rev: string (1..64 chars)     - client-made id of THIS write. Every device
+//                                     remembers the rev it last saw; a write is a
+//                                     transaction that only commits while the doc
+//                                     still carries that rev, so two devices can
+//                                     never silently overwrite each other.
+//
+// !! MAINTENANCE CONTRACT !!
+// `hasOnly` rejects any key not listed below. Adding a field to the payload in
+// web/js/auth.js buildPayload() WITHOUT adding it here makes every cloud write
+// fail with permission-denied (GymBro lost two days of edits to exactly this).
+// The client now surfaces write failures loudly, but the ordering rule stands:
+// update and deploy these rules BEFORE shipping a client that writes a new
+// field. Bumping `schema` needs the same treatment (schema == 1 below).
+//
+// Caps are a sanity ceiling against runaway or hostile writes, NOT a quota.
+// Firestore's hard 1 MiB document limit binds long before them: at roughly
+// 150 bytes per completion and 350 per task the document is full at ~3000
+// tasks plus ~8000 completions, far below the caps. The client warns at
+// 800 KB (storage.js SIZE_WARN_BYTES). The UI limits (200 projects, 5000 tasks)
+// are deliberately lower than the caps here, so a limit change in the app can
+// never turn into silent rejections by these rules. Completions have no UI
+// limit and grow for ever, hence the most generous cap.
+//
+// No other collections exist. Each user may only read/write their own
+// document. Identity (email) lives in Firebase Auth, not in this document.
+//
+// LIMITATION: the rules language has no loop construct, so the shape of the
+// items inside each list cannot be validated here. Rules check top-level shape,
+// type and size only; the client owns item shape. Fine for a single-owner app,
+// not a defence against a hostile client.
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidList(field, maxSize) {
+      return request.resource.data[field] is list &&
+        request.resource.data[field].size() <= maxSize;
+    }
+
+    function isValidUserData() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          'schema', 'areaLabels', 'projects', 'tasks', 'completions', 'updatedAt', 'rev'
+        ]) &&
+        data.keys().hasAll([
+          'schema', 'areaLabels', 'projects', 'tasks', 'completions', 'updatedAt', 'rev'
+        ]) &&
+        data.schema is number && data.schema == 1 &&
+        data.areaLabels is map && data.areaLabels.size() <= 10 &&
+        isValidList('projects', 1000) &&
+        isValidList('tasks', 20000) &&
+        isValidList('completions', 50000) &&
+        data.updatedAt is timestamp &&
+        data.rev is string && data.rev.size() > 0 && data.rev.size() <= 64;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserData();
+      allow update: if isOwner(userId) && isValidUserData();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
