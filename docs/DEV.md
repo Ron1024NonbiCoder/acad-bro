@@ -62,7 +62,7 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - [x] 2026-10-26 **Swipe-left tray**: Due / Priority / Repeat / Rename / Note / Move / Delete. A full swipe fires Due. Subtasks are added in the expanded view (tap the task).
 - [x] 2026-10-27 Monthly day D beyond the month's length goes to the last day.
 - [x] 2026-10-27 Areas: *fixed 3 areas, labels renamable.*
-- [ ] Timezone handling (travel across zones): explained to PO 2026-10-27, waiting on choice. *Default: follow the device timezone.*
+- [ ] Timezone handling (travel across zones): **PO 2026-10-27: edge case, decide later.** Built as: follow the device timezone. Options when revisited: (2) fixed home timezone in the profile, synced; (3) device timezone + a toast when the timezone changes; plus an optional "day starts at HH:00" for late nights. Switching later only affects new records (stored `date` is never rewritten).
 - [x] 2026-10-26 Input limits accepted: name 80 chars, note 2000, 30 subtasks per task, 200 projects, 5000 tasks. Hitting a limit shows a toast (never a silent reject).
 - [x] 2026-10-27 Priority levels: *none / low / med / high.*
 - [x] 2026-10-27 Project archive vs delete: *both; archive hides the project but keeps its history.*
@@ -165,9 +165,10 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | open | Console: **create your account by hand** (Authentication > Users > Add user: email + password). There is no sign-up screen and no password reset, so keep the password safe. |
 | open | **Deploy the rules BEFORE the app**: `cd "C:\Users\Sir\Downloads\AcadBro" && npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes` then `--only hosting`. Claude has not deployed anything; say the word and it will. (`firebase.json` also carries `auth.providers.emailPassword`, which the CLI schema accepts; a plain `firebase deploy` would apply it too.) |
 | done 2026-10-27 | Confirmed the M5 decisions in section 2. |
-| open | Auth: confirm Email/Password is enabled, then add your user (console > Authentication > Users > Add user). Checked after deploy 2026-10-27: Auth is set up, 0 users. |
+| done 2026-10-27 | Auth: Email/Password enabled and the PO's account created. |
+| suspended 2026-10-27 | Run the M5 QA checklist on phone + desktop. **PO: QA paused until the app is more complete.** Checklist (12 steps): login uploads local data; wrong-password message; second device login keeps a recovery copy; foreground pull; airplane-mode edit (orange dot); offline cold start (SDK cache); back online ("Back in sync"); offline edits on both -> conflict sheet; both choices + Recovery copy; restore + Undo; logout warning; M1–M4 regression. |
 | done 2026-10-27 | Deploy approved; Claude deployed rules + indexes, then hosting (commit `193436d`). Verified: live title "AcadBro", `sw.js` = `acadbro-v5`, live rules = repo rules, anonymous read of `users/x` -> 403. Auth now answers (0 users). |
-| open | Timezone choice (§3). |
+| deferred | Timezone choice (§3): edge case, later. |
 | open | Hand-test sync on a real phone + desktop (conflict, offline edit, log out/in). |
 | done 2026-10-26 | Decided: **login-only** for now (like GymBro; accounts created by hand in the console). Sign-up can be added later. |
 
