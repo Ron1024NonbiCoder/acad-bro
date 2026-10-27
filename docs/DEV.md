@@ -47,7 +47,7 @@ Last updated: 2026-10-27 (M5 code complete, not deployed).
 | 2026-10-27 | Per-save cloud check: PO said "edge case, not now", but the code **already has it**: `auth.js` saves inside `runTransaction` that only commits while the doc carries the `rev` this device last saw (rules require `rev`). The §7 "known gap" row was stale; corrected | Found while verifying the live rules after deploy. |
 | 2026-10-27 | **Firebase SDK cached by the service worker** (cache-first, versioned URL, cached on first use) so an offline launch while signed in can still sync later | `sw.js` `SDK_PREFIX` must match `cloud.js` `SDK_BASE` when the SDK version is bumped. |
 | 2026-10-27 | **Android = TWA first** (wrapper over the hosted PWA, same UI) | M6. Needs `assetlinks.json` + PNG icons. |
-| 2026-10-27 | TWA: **self-installed APK first** (no Play Store yet); package name **`app.acadbro`** (fixed forever once on Play) | Keystore custody still open (§3). |
+| 2026-10-27 | TWA: **self-installed APK first** (no Play Store yet); package name **`app.acadbro`** (fixed forever once on Play) | Keystore: Claude creates it and sets the password; losing it only means reinstalling (§3). |
 | 2026-10-27 | M6 scope (PO): known bugs, PNG + maskable icons, transitions / no layout jumps, full verifier pass over M1–M5, TWA | Plan: §5 "M6 plan". |
 | 2026-10-27 | Firestore region `asia-northeast1` (Tokyo), Standard edition — set by PO | |
 | 2026-10-26 | Storage shape (proposed): one doc `users/{uid}` written whole, like GymBro | Risk: 1 MB Firestore doc limit. Add a size guard (warn at 800 KB). Revisit if users accumulate large amounts of notes. |
@@ -66,7 +66,7 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - [x] 2026-10-27 Areas: *fixed 3 areas, labels renamable.*
 - [ ] Timezone handling (travel across zones): **PO 2026-10-27: edge case, decide later.** Built as: follow the device timezone. Options when revisited: (2) fixed home timezone in the profile, synced; (3) device timezone + a toast when the timezone changes; plus an optional "day starts at HH:00" for late nights. Switching later only affects new records (stored `date` is never rewritten).
 - [x] 2026-10-26 Input limits accepted: name 80 chars, note 2000, 30 subtasks per task, 200 projects, 5000 tasks. Hitting a limit shows a toast (never a silent reject).
-- [ ] TWA keystore custody (blocks M6 step 6). Every Android APK must be signed, Capacitor included. *Recommended: Bubblewrap creates the keystore on this PC outside the repo, the PO sets the password and backs it up.*
+- [x] 2026-10-27 TWA keystore: **Claude creates it and sets the password**; testing stage, so if it is lost the PO uninstalls and reinstalls the app. Keystore + password live outside the repo (see M6 step 6). Revisit before any Play Store release (use Play App Signing then).
 - [ ] Claude defaults in the M6 plan to confirm: import over the limits is refused with an explanation (no truncation), import files over 2 MB refused, area rename in Settings > Areas (max 20 chars).
 - [x] 2026-10-27 Priority levels: *none / low / med / high.*
 - [x] 2026-10-27 Project archive vs delete: *both; archive hides the project but keeps its history.*
@@ -178,7 +178,8 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 - First move the headless smoke from the scratchpad into the repo as `scripts/smoke.mjs` (Chrome over CDP, mocked Firebase via Fetch interception, never the live backend) so later agents can rerun it.
 - The verifier (a fresh agent that has not seen this work) checks every §2/§3 decision against the running app at 360 and 390px and reports gaps; Claude fixes them or lists them in §7.
 
-**Step 6: TWA (blocked on the keystore answer)**
+**Step 6: TWA**
+- Keystore (PO decision 2026-10-27): the executing agent lets Bubblewrap create it at `C:\Users\Sir\.acadbro-keys\acadbro.keystore` (alias `acadbro`), with a random 24-character password saved next to it in `C:\Users\Sir\.acadbro-keys\password.txt`. Both stay outside the repo and are never printed in chat or in this doc. If lost: make a new key, update `assetlinks.json`, and the PO uninstalls and reinstalls the app.
 - Tool: Bubblewrap (`npx -y @bubblewrap/cli init --manifest https://acadbro-166c4.web.app/manifest.json`), project in `android/` at the repo root. Package `app.acadbro`, name "AcadBro", theme/background `#030303`, start URL `/`.
 - Commit `android/twa-manifest.json` and the generated project; **never commit the keystore**: add `*.keystore`, `*.jks`, `android/**/build/` to `.gitignore`.
 - Add `web/.well-known/assetlinks.json` (package name + SHA-256 of the signing certificate). **Trap:** `firebase.json` hosting `ignore` has `"**/.*"`, which drops `.well-known/`. Narrow that pattern, then confirm the file is served as JSON with a 200.
@@ -196,7 +197,7 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | done 2026-10-27 | M4 review board + per-project heatmaps (`web/js/review-board.js`; pure logic in tasks-core.js; tests 13+28+10 pass; headless smoke at 390 and 360px passes) |
 | done 2026-10-27 (code) | M5 auth + sync built and machine-tested against a mocked SDK (tests 20+13+28+10 pass; rules checked on the Firestore emulator). **Not tested against the live backend**: needs the PO steps below, then a real two-device pass |
 | pending | M5 live test: log in, edit, confirm a second device/browser sees it; force a conflict (edit offline on both) and try both choices + Restore |
-| planned 2026-10-27 | M6, see §5 "M6 plan". Steps 1–5 ready to hand off; step 6 (TWA) waits on the keystore answer |
+| planned 2026-10-27 | M6, see §5 "M6 plan". All 6 steps ready to hand off (keystore decided). Step 2 uses Claude defaults until the PO confirms them (§3) |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
 | pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
 | pending | PNG icons (iOS ignores SVG apple-touch-icon) |
