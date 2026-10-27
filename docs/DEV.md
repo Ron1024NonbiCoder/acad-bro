@@ -253,6 +253,7 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 
 | Status | Bug |
 |---|---|
+| fixed in code 2026-10-27 (not deployed; not yet seen on a phone) | A task completed on a day showed as a filled dot on the Activity board but nothing on the day strip (the strip had no done indicator at all). Each strip day now has a small dot in the page accent colour when a task or subtask was completed that day on the current page (all areas on All). Same counting source as the board (`doneDates` in `tasks-core.js`); the dot slot exists on every cell so the strip never changes height. |
 | fixed in code (row corrected 2026-10-27; needs the live two-device test) | Two devices open at once could overwrite each other. Saves now run in a transaction gated on `rev`, so a stale device gets the conflict sheet instead. |
 | fixed in code 2026-10-27 (not deployed, not yet tested offline on a device) | Offline launch while signed in: the Firebase SDK was not in the service-worker cache, so sync stayed paused until online. `sw.js` now caches `gstatic.com/firebasejs/12.16.0/*` cache-first (SW cache `acadbro-v5`). Only works after the SDK has loaded once online. |
 | fixed in code 2026-10-27 (M6 step 1a; not deployed, not tried on a real phone) | While an editor was open, tapping another button committed on blur and re-rendered, so that tap was swallowed. Now a capture-phase `pointerdown` records the press (`pendingTap`), blur defers its commit, and the click commits first then runs the tapped action. Reproduced and fixed in a headless run at 390px (rename, note and add editors; Esc still cancels). |
@@ -265,6 +266,8 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | fixed 2026-10-26 | Review board header "LAST 7 DAYS" overlapped the first day column. Label is now "7 days" and the column is 64px. |
 
 ## 8. Changelog
+
+- 2026-10-27: **Day strip done dots (not deployed).** `tasks-core.js doneDates`, `day-strip.js` (dot under each day with a completion on the current page), `styles.css .strip-done-dot` (strip is 5px taller on every day, gap 6px to 4px), `sw.js` cache `acadbro-v9`. Tests: `test-tasks-core` (29 pass), `smoke-m4` (+6 strip checks), `smoke-motion` and `smoke-m6` still pass.
 
 - 2026-10-27: **M6 step 6: Android TWA (not deployed, not installed).** New `android/` (Bubblewrap 1.24.1, package `app.acadbro`, v1); keystore + password outside the repo (`C:\Users\Sir\.acadbro-keys\`); signed APK copied to `C:\Users\Sir\Downloads\AcadBro-APK\acadbro.apk` (not in git). New `web/.well-known/assetlinks.json`. `firebase.json` hosting: ignore narrowed to keep `.well-known`, JSON content type for assetlinks (the only firebase.json change). `.gitignore`: keystores, APK/AAB/idsig, Android build dirs. `sw.js` not bumped (assetlinks is not in the SW cache; nothing the SW serves changed). `firestore.rules`, `web/js/*` untouched.
 

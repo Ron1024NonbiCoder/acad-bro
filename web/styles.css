@@ -344,13 +344,23 @@ h1, h2, h3, p { margin: 0; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 26px;
   padding: 2px 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--dur-fast) ease;
 }
+/* a dot under days with a completion (same meaning as the Activity board's filled dot);
+   every cell has the slot so the strip never changes height */
+.strip-done-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background var(--dur-fast) ease;
+}
+.strip-cell.has-done .strip-done-dot { background: var(--accent); }
 .strip-cell:hover:not(.selected) { background: var(--card-2); }
 .strip-cell.selected { background: var(--card-3); }
 .strip-weekday {

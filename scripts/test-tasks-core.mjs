@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import {
   LIMITS, activeDays, activityIndex, activityKey, applyDiff, canAdd, describeRecur, diffCollections, doneCompletion,
-  heatmapGrid, indexCompletions, intensityLevel, isDone, isDue, isEmptyDiff, isOverdue, isRelevant, isSubtaskDone,
+  doneDates, heatmapGrid, indexCompletions, intensityLevel, isDone, isDue, isEmptyDiff, isOverdue, isRelevant, isSubtaskDone,
   matchesRecur, normalizeRecur, reviewGroups, snapshotCollections, sortFlat, subtaskProgress,
   validateName, validateNote, windowDays
 } from '../web/js/tasks-core.js';
@@ -293,6 +293,19 @@ test('activityIndex: one pass agrees with activeDays for projects and loose rows
   assert.equal(idx.get('p:p1').has('2026-09-01'), false);
   assert.equal(activityKey(task({ projectId: 'p9' })), 'p:p9');
   assert.equal(activityKey(task({ projectId: null, area: 'living' })), 'loose:living');
+});
+
+test('doneDates: days with a task or subtask completion in the given areas, in range only', function () {
+  var tasks = [
+    task({ id: 't1', area: 'hobby' }), task({ id: 't2', area: 'hobby', subtasks: [{ id: 's1', title: 'a' }] }),
+    task({ id: 't3', area: 'prod' })
+  ];
+  var comps = [
+    comp({ taskId: 't1', date: '2026-10-26' }), comp({ taskId: 't2', subtaskId: 's1', date: '2026-10-25' }),
+    comp({ taskId: 't3', date: '2026-10-24' }), comp({ taskId: 't1', date: '2026-09-01' }), comp({ taskId: 'gone', date: '2026-10-23' })
+  ];
+  assert.deepEqual([...doneDates(tasks, comps, ['hobby'], '2026-10-19', '2026-11-08')].sort(), ['2026-10-25', '2026-10-26']);
+  assert.deepEqual([...doneDates(tasks, comps, ['hobby', 'prod'], '2026-10-19', '2026-11-08')].sort(), ['2026-10-24', '2026-10-25', '2026-10-26']);
 });
 
 test('windowDays: no data gives seven inactive days ending on the given day', function () {

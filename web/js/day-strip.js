@@ -11,7 +11,9 @@
      week (same weekday) and the caller re-renders, which re-centres.
    Pure view helpers: no render() import, so shell.js owns when to repaint. */
 
-import { ui } from './state.js';
+import { ui, AREA_IDS } from './state.js';
+import { DB } from './storage.js';
+import { doneDates } from './tasks-core.js';
 import { weekStartDow } from './settings.js';
 import { WEEKDAY_SHORT, addDays, fmtISO, parseISO, startOfWeek, todayISO } from './utils.js';
 
@@ -27,25 +29,29 @@ export function stripWeeks(centerISO) {
   return weeks;
 }
 
-function cellHtml(iso) {
+function cellHtml(iso, done) {
   var d = parseISO(iso);
   var isToday = iso === todayISO();
   var isSelected = iso === ui.selectedDate;
-  return '<div class="strip-cell' + (isToday ? ' is-today' : '') + (isSelected ? ' selected' : '')
-    + '" role="button" tabindex="0" aria-label="Select ' + iso + (isToday ? ' (today)' : '') + '"'
+  var isDone = done.has(iso);
+  return '<div class="strip-cell' + (isToday ? ' is-today' : '') + (isSelected ? ' selected' : '') + (isDone ? ' has-done' : '')
+    + '" role="button" tabindex="0" aria-label="Select ' + iso + (isToday ? ' (today)' : '') + (isDone ? ', tasks done' : '') + '"'
     + (isSelected ? ' aria-pressed="true"' : ' aria-pressed="false"')
     + ' data-action="select-day" data-date="' + iso + '">'
     + '<span class="strip-weekday">' + WEEKDAY_SHORT[d.getDay()].charAt(0) + '</span>'
     + '<span class="day-num-wrap">' + d.getDate() + '</span>'
+    + '<span class="strip-done-dot"></span>'
     + '<span class="strip-today-mark"></span>'
     + '</div>';
 }
 
 export function renderDayStrip() {
   var weeks = stripWeeks(ui.selectedDate);
+  /* a dot under each day with a completion on this page (all areas on "All") */
+  var done = doneDates(DB.tasks, DB.completions, ui.page === 'all' ? AREA_IDS : [ui.page], weeks[0][0], weeks[2][6]);
   return '<div class="day-strip-card"><div class="day-strip"><div class="strip-grid">'
     + weeks.map(function (days) {
-      return '<div class="strip-week">' + days.map(cellHtml).join('') + '</div>';
+      return '<div class="strip-week">' + days.map(function (iso) { return cellHtml(iso, done); }).join('') + '</div>';
     }).join('')
     + '</div></div></div>';
 }

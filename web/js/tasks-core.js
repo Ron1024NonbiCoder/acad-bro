@@ -242,6 +242,20 @@ export function activityIndex(tasks, completions, startISO, endISO) {
   return index;
 }
 
+/* Set of ISO dates in startISO..endISO with at least one completion (task or
+   subtask) of a task in `areas` -- the day strip's done dots. Same rule as
+   activityIndex: completions of deleted tasks are ignored. */
+export function doneDates(tasks, completions, areas, startISO, endISO) {
+  var ok = new Set();
+  tasks.forEach(function (t) { if (areas.indexOf(t.area) !== -1) ok.add(t.id); });
+  var out = new Set();
+  completions.forEach(function (c) {
+    if (c.date < startISO || c.date > endISO || !ok.has(c.taskId)) return;
+    out.add(c.date);
+  });
+  return out;
+}
+
 /* The `n` days ending at endISO (oldest first) from one row's date->count Map
    (undefined = no activity): the same shape as activeDays. */
 export function windowDays(counts, endISO, n) {
