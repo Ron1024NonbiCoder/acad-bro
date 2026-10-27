@@ -67,7 +67,7 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - [ ] Timezone handling (travel across zones): **PO 2026-10-27: edge case, decide later.** Built as: follow the device timezone. Options when revisited: (2) fixed home timezone in the profile, synced; (3) device timezone + a toast when the timezone changes; plus an optional "day starts at HH:00" for late nights. Switching later only affects new records (stored `date` is never rewritten).
 - [x] 2026-10-26 Input limits accepted: name 80 chars, note 2000, 30 subtasks per task, 200 projects, 5000 tasks. Hitting a limit shows a toast (never a silent reject).
 - [x] 2026-10-27 TWA keystore: **Claude creates it and sets the password**; testing stage, so if it is lost the PO uninstalls and reinstalls the app. Keystore + password live outside the repo (see M6 step 6). Revisit before any Play Store release (use Play App Signing then).
-- [ ] Claude defaults in the M6 plan to confirm: import over the limits is refused with an explanation (no truncation), import files over 2 MB refused, area rename in Settings > Areas (max 20 chars).
+- [x] 2026-10-27 PO approved the M6 step 2 defaults: import over the limits is refused with an explanation (no truncation); import files over 2 MB refused with the reason; area rename in Settings > Areas, edited in place, max 20 chars, empty resets to the default, with Undo.
 - [x] 2026-10-27 Priority levels: *none / low / med / high.*
 - [x] 2026-10-27 Project archive vs delete: *both; archive hides the project but keeps its history.*
 - [x] 2026-10-27 Legal / disclaimer / privacy text: *none until public release.*
@@ -197,7 +197,7 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | done 2026-10-27 | M4 review board + per-project heatmaps (`web/js/review-board.js`; pure logic in tasks-core.js; tests 13+28+10 pass; headless smoke at 390 and 360px passes) |
 | done 2026-10-27 (code) | M5 auth + sync built and machine-tested against a mocked SDK (tests 20+13+28+10 pass; rules checked on the Firestore emulator). **Not tested against the live backend**: needs the PO steps below, then a real two-device pass |
 | pending | M5 live test: log in, edit, confirm a second device/browser sees it; force a conflict (edit offline on both) and try both choices + Restore |
-| planned 2026-10-27 | M6, see §5 "M6 plan". All 6 steps ready to hand off (keystore decided). Step 2 uses Claude defaults until the PO confirms them (§3) |
+| planned 2026-10-27 | M6, see §5 "M6 plan". All 6 steps ready to hand off; every decision they need is made (§3) |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
 | pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
 | pending | PNG icons (iOS ignores SVG apple-touch-icon) |
