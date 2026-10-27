@@ -6,7 +6,7 @@
 import { ui } from './state.js';
 import { settings, setSetting, WEEK_START_LABELS } from './settings.js';
 import {
-  DB, buildExport, countsOf, dataSizeBytes, parseImport, replaceData, saveData, saveInfo, snapshotJSON
+  DB, buildExport, countsOf, dataSizeBytes, importSizeError, parseImport, replaceData, saveData, saveInfo, snapshotJSON
 } from './storage.js';
 import { downloadFile } from './download.js';
 import { render } from './shell.js';
@@ -62,9 +62,18 @@ export function renderSettingsView() {
 /* the import preview, shown in the bottom sheet */
 export function importSheetHtml(sheet) {
   var now = countsOf(DB);
-  return '<div class="import-preview">'
+  var problems = sheet.problems || [];
+  var head = '<div class="import-preview">'
     + '<div class="import-file">' + escapeHtml(sheet.fileName) + '</div>'
-    + '<div class="import-counts">' + escapeHtml(countsText(sheet.counts)) + ', ' + plural(sheet.counts.completions, 'completion') + '</div>'
+    + '<div class="import-counts">' + escapeHtml(countsText(sheet.counts)) + ', ' + plural(sheet.counts.completions, 'completion') + '</div>';
+  if (problems.length) {
+    /* over the limits: nothing is applied or trimmed; say exactly what to fix */
+    return head
+      + problems.map(function (m) { return '<p class="settings-note import-problem">' + escapeHtml(m) + '</p>'; }).join('')
+      + '<p class="settings-note">Your current data stays as it is.</p>'
+      + '<div class="editor-actions"><button type="button" class="btn primary" data-action="close-sheet">Got it</button></div></div>';
+  }
+  return head
     + '<p class="settings-note">This replaces your current data (' + escapeHtml(countsText(now)) + '). You can undo it right after.</p>'
     + '<div class="editor-actions">'
     + '<button type="button" class="btn primary" data-action="confirm-import">Replace data</button>'
@@ -109,6 +118,8 @@ export function exportData() {
 /* ================= import ================= */
 export async function onImportFile(file) {
   if (!file) return;
+  var sizeErr = importSizeError(file.size);
+  if (sizeErr) { showToast({ message: sizeErr, tone: 'warn' }); return; }
   var text;
   try { text = await file.text(); } catch (err) {
     showToast({ message: 'That file could not be read. Choose it again.', tone: 'warn' });
@@ -116,7 +127,7 @@ export async function onImportFile(file) {
   }
   var res = parseImport(text);
   if (!res.ok) { showToast({ message: res.error, tone: 'warn' }); return; }
-  ui.sheet = { type: 'import', fileName: file.name, counts: res.counts, data: res.data };
+  ui.sheet = { type: 'import', fileName: file.name, counts: res.counts, data: res.data, problems: res.problems };
   render();
 }
 
@@ -152,6 +163,7 @@ function undoImport(data, prevJSON) {
 export function confirmImport() {
   var sheet = ui.sheet;
   if (!sheet || sheet.type !== 'import') return;
+  if (sheet.problems && sheet.problems.length) return; /* over the limits: never applied */
   ui.sheet = null;
   applyImport(sheet.data, snapshotJSON(), false);
 }

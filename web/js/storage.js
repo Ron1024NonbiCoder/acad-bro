@@ -10,6 +10,7 @@
    and calls hooks.onSaveError, and a doc near the 1 MB Firestore limit warns. */
 
 import { markDirty } from './sync-core.js';
+import { LIMITS } from './tasks-core.js';
 import { todayISO } from './utils.js';
 
 export var STORAGE_KEY = 'acadbro-data-v1';
@@ -45,12 +46,14 @@ export function defaultData() {
 /* A usable v1 doc from raw parsed JSON, or null when it is not one. Fills
    missing fields with defaults and keeps unknown ones (a newer minor field
    survives a round trip). Items are kept as they are; only completions get the
-   one default the model promises (subtaskId null = the whole task). */
+   one default the model promises (subtaskId null = the whole task).
+   Area labels are fixed (PO 2026-10-27, no rename): whatever the input says,
+   the defaults win. The field stays in the doc because firestore.rules need it. */
 export function normalizeData(raw) {
   if (!isObj(raw) || raw.schema !== SCHEMA) return null;
   var d = Object.assign({}, raw);
   var def = defaultData();
-  d.areaLabels = Object.assign({}, def.areaLabels, isObj(raw.areaLabels) ? raw.areaLabels : {});
+  d.areaLabels = def.areaLabels;
   ['projects', 'tasks', 'completions'].forEach(function (k) {
     d[k] = Array.isArray(raw[k]) ? raw[k].filter(isObj) : [];
   });
@@ -237,7 +240,58 @@ export function buildExport() {
   };
 }
 
-/* { ok:true, data, counts } | { ok:false, error } -- errors say what to do */
+/* ---- import limits (tasks-core LIMITS), checked before anything is applied ---- */
+export var MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+
+/* A message when the chosen file is too big to read, else null. Checked on
+   file.size BEFORE the text is read or parsed. */
+export function importSizeError(bytes) {
+  if (bytes <= MAX_IMPORT_BYTES) return null;
+  return 'This file is ' + (bytes / 1048576).toFixed(1) + ' MB. AcadBro imports files up to '
+    + (MAX_IMPORT_BYTES / 1048576) + ' MB; please choose an AcadBro export.';
+}
+
+function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+function strLen(v) { return typeof v === 'string' ? v.length : 0; }
+
+/* Everything in `data` that is over LIMITS, as positive, precise sentences
+   (empty array = fine). Nothing is trimmed: the import is refused instead. */
+export function importLimitProblems(data) {
+  var out = [];
+  if (data.tasks.length > LIMITS.tasks) {
+    out.push('This file has ' + plural(data.tasks.length, 'task') + '. AcadBro holds up to ' + LIMITS.tasks + '; please trim the file and import again.');
+  }
+  if (data.projects.length > LIMITS.projects) {
+    out.push('This file has ' + plural(data.projects.length, 'project') + '. AcadBro holds up to ' + LIMITS.projects + '; please trim the file and import again.');
+  }
+  var longNames = 0, longNotes = 0, manySubs = 0, maxName = 0, maxNote = 0, maxSubs = 0;
+  function name(s) { var n = strLen(s); if (n > LIMITS.name) { longNames++; if (n > maxName) maxName = n; } }
+  function note(s) { var n = strLen(s); if (n > LIMITS.note) { longNotes++; if (n > maxNote) maxNote = n; } }
+  data.projects.forEach(function (p) { name(p.name); note(p.note); });
+  data.tasks.forEach(function (t) {
+    name(t.title); note(t.note);
+    var subs = Array.isArray(t.subtasks) ? t.subtasks : [];
+    if (subs.length > LIMITS.subtasks) { manySubs++; if (subs.length > maxSubs) maxSubs = subs.length; }
+    subs.forEach(function (st) { if (isObj(st)) name(st.title); });
+  });
+  if (longNames) {
+    out.push(plural(longNames, 'name') + ' in this file ' + (longNames === 1 ? 'is' : 'are') + ' over ' + LIMITS.name
+      + ' characters (the longest has ' + maxName + '). Please shorten ' + (longNames === 1 ? 'it' : 'them') + ' and import again.');
+  }
+  if (longNotes) {
+    out.push(plural(longNotes, 'note') + ' in this file ' + (longNotes === 1 ? 'is' : 'are') + ' over ' + LIMITS.note
+      + ' characters (the longest has ' + maxNote + '). Please shorten ' + (longNotes === 1 ? 'it' : 'them') + ' and import again.');
+  }
+  if (manySubs) {
+    out.push(plural(manySubs, 'task') + ' in this file ' + (manySubs === 1 ? 'has' : 'have') + ' more than ' + LIMITS.subtasks
+      + ' subtasks (the most is ' + maxSubs + '). AcadBro holds up to ' + LIMITS.subtasks + ' per task; please trim and import again.');
+  }
+  return out;
+}
+
+/* { ok:true, data, counts, problems } | { ok:false, error } -- errors say what
+   to do. `problems` lists limit overruns; when it is not empty the caller must
+   not apply `data` (the preview sheet shows them instead of the Replace button). */
 export function parseImport(text) {
   var parsed;
   try { parsed = JSON.parse(text); } catch (err) {
@@ -248,5 +302,5 @@ export function parseImport(text) {
   }
   var data = normalizeData(parsed);
   if (!data) return { ok: false, error: 'Choose a JSON file exported from AcadBro (Settings > Export).' };
-  return { ok: true, data: data, counts: countsOf(data) };
+  return { ok: true, data: data, counts: countsOf(data), problems: importLimitProblems(data) };
 }

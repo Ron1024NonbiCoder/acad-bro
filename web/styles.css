@@ -787,6 +787,13 @@ h1, h2, h3, p { margin: 0; }
   align-items: flex-end;
   pointer-events: none;
   max-width: min(360px, calc(100vw - 20px));
+  transition: right var(--dur) var(--ease-out);
+}
+/* a sheet is open: keep the right edge clear so the stack never covers the
+   sheet's close button (it sits top-right in .sheet-head) */
+body.sheet-open .toast-host {
+  right: calc(56px + env(safe-area-inset-right, 0px));
+  max-width: min(360px, calc(100vw - 66px - env(safe-area-inset-right, 0px)));
 }
 .toast {
   pointer-events: auto;

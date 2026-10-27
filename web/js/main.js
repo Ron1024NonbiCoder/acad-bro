@@ -2,7 +2,10 @@
    midnight rollover, and the first render. Module evaluation order guarantees
    storage.js has loaded local data before this runs. */
 
-import { onAppClick, onAppChange, onAppInput, onFocusOut, onKeyDown, onAppScroll } from './events.js';
+import {
+  onAppClick, onAppChange, onAppInput, onAppPointerCancelCapture, onAppPointerDownCapture, onAppPointerUpCapture,
+  onFocusOut, onKeyDown, onAppScroll
+} from './events.js';
 import { onLongPressPointerDown } from './long-press.js';
 import { onSwipeEntryPointerDown } from './swipe-entry.js';
 import { onPopState, onSheetPointerDown, onSheetPointerMove, onSheetPointerUp } from './layers.js';
@@ -79,6 +82,10 @@ function scheduleMidnight() {
 
 function init() {
   applyLaunchDeepLink();
+  /* capture phase: records a press on a button while an editor is open, before the blur it causes (events.js) */
+  document.addEventListener('pointerdown', onAppPointerDownCapture, true);
+  document.addEventListener('pointerup', onAppPointerUpCapture, true);
+  document.addEventListener('pointercancel', onAppPointerCancelCapture, true);
   document.addEventListener('click', onAppClick);
   document.addEventListener('pointerdown', onLongPressPointerDown);
   document.addEventListener('pointerdown', onSwipeEntryPointerDown);

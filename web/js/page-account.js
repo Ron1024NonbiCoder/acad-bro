@@ -153,10 +153,10 @@ function loginHtml(sheet) {
     : '';
   return '<div class="login-form">' + note
     + '<label class="field-label" for="login-email">Email</label>'
-    + '<input id="login-email" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="name@example.com" data-login-field'
+    + '<input id="login-email" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="254" placeholder="name@example.com" data-login-field'
     + (sheet && sheet.email ? ' value="' + escapeHtml(sheet.email) + '"' : '') + '>'
     + '<label class="field-label" for="login-password">Password</label>'
-    + '<input id="login-password" type="password" autocomplete="current-password" data-login-field>'
+    + '<input id="login-password" type="password" autocomplete="current-password" maxlength="128" data-login-field>'
     + '<p class="form-error" id="login-error" role="alert"></p>'
     + '<div class="editor-actions">'
     + '<button type="button" class="btn primary" id="login-submit" data-action="submit-login">Log in</button>'

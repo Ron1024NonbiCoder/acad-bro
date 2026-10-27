@@ -30,8 +30,63 @@ function actionHaptic(action) {
   else if (/^(save-|confirm-|add-|create-|set-|toggle-|submit-|conflict-keep-)/.test(action)) tickLanded();
 }
 
+/* ---- tap while an editor is open ----
+   Pressing a button while a rename / note / add field has focus blurs the field;
+   the blur commits and render() replaces #app-root, so the pressed button is
+   detached before its click fires and the tap is lost. relatedTarget cannot
+   tell us what was pressed (null for buttons on iOS Safari), so a capture-phase
+   pointerdown records the press (pendingTap) and onFocusOut defers the commit
+   to onAppClick, which commits first and then runs the tapped action from the
+   dataset it read before the re-render. A press that never becomes a click (a
+   drag, a scroll, pointercancel) commits after TAP_WAIT_MS, as before. */
+var TAP_WAIT_MS = 600;
+var pendingTap = null; /* { skipped: [input elements whose commit was deferred], timer } */
+
+function armTapTimer() {
+  if (!pendingTap) return;
+  if (pendingTap.timer) clearTimeout(pendingTap.timer);
+  pendingTap.timer = setTimeout(function () { settlePendingTap(true); }, TAP_WAIT_MS);
+}
+/* Drop the pending tap; commit the deferred fields when asked. Returns it. */
+function settlePendingTap(commit) {
+  var tap = pendingTap;
+  pendingTap = null;
+  if (!tap) return null;
+  if (tap.timer) clearTimeout(tap.timer);
+  if (commit) commitSkipped(tap);
+  return tap;
+}
+function commitSkipped(tap) {
+  tap.skipped.forEach(function (el) { if (el.isConnected) commitEditor(el, false); });
+  tap.skipped = [];
+}
+
+export function onAppPointerDownCapture(e) {
+  var t = e.target;
+  var prev = pendingTap ? settlePendingTap(false) : null; /* a new press carries the deferred commits over */
+  var skipped = prev ? prev.skipped : [];
+  var hit = t && t.closest ? t.closest('[data-action]') : null;
+  var active = document.activeElement;
+  var editing = active && active.matches && active.matches('[data-edit-input]') ? active : null;
+  var scope = editing ? editing.closest('[data-edit-scope]') : null;
+  var worthy = hit && !t.closest('input, textarea, select') && (editing || skipped.length)
+    && !(scope && scope.contains(hit));
+  if (!worthy) {
+    if (skipped.length) commitSkipped({ skipped: skipped }); /* the press went somewhere else: commit as today */
+    return;
+  }
+  pendingTap = { skipped: skipped, timer: null };
+  armTapTimer();
+}
+export function onAppPointerUpCapture() { armTapTimer(); }
+export function onAppPointerCancelCapture() { settlePendingTap(true); }
+
 export function onAppClick(e) {
+  var tap = settlePendingTap(false);
   var target = e.target.closest('[data-action]');
+  /* read before any re-render detaches the pressed element */
+  var ds = target ? Object.assign({}, target.dataset) : null;
+  if (tap) commitSkipped(tap);
   /* A held-open swipe tray: a tap on the card itself, or anywhere else but the
      tray's own buttons, only closes it (and is not also a select / open). The
      trailing click of the very swipe that opened it is eaten first, or it would
@@ -48,19 +103,19 @@ export function onAppClick(e) {
   if (e.target.closest('input, textarea, select')) return;
   /* the trailing click of a fired long-press must not also do the tap thing */
   if (consumeLongPressClick()) return;
-  var action = target.dataset.action;
+  var action = ds.action;
   actionHaptic(action);
   switch (action) {
-    case 'switch-page': switchPage(target.dataset.page); break;
-    case 'select-day': selectDay(target.dataset.date); break;
+    case 'switch-page': switchPage(ds.page); break;
+    case 'select-day': selectDay(ds.date); break;
     case 'nav-today': selectDay(todayISO()); break;
     case 'review-fold': toggleReviewBoard(); render(); break;
-    case 'review-row': toggleReviewRow(target.dataset.key); render(); break;
-    case 'review-cell': pickReviewCell(target.dataset.date); render(); break;
+    case 'review-row': toggleReviewRow(ds.key); render(); break;
+    case 'review-cell': pickReviewCell(ds.date); render(); break;
     case 'open-settings': openSettings(); break;
     case 'close-settings': closeSettings(); break;
     case 'close-sheet': closeSheet(); break;
-    case 'set-week-start': changeWeekStart(target.dataset.value); break;
+    case 'set-week-start': changeWeekStart(ds.value); break;
     case 'toggle-haptics': toggleHaptics(); break;
     case 'export-data': exportData(); break;
     case 'confirm-import': confirmImport(); break;
@@ -82,8 +137,8 @@ export function onAppClick(e) {
     case 'discard-recovery': setDiscardConfirm(true); break;
     case 'cancel-discard-recovery': setDiscardConfirm(false); break;
     case 'confirm-discard-recovery': confirmDiscardRecovery(); break;
-    case 'tray-action': runTrayAction(target.dataset.tray, target.dataset.id); break;
-    default: handleTaskAction(action, target.dataset); break;
+    case 'tray-action': runTrayAction(ds.tray, ds.id); break;
+    default: handleTaskAction(action, ds); break;
   }
 }
 
@@ -131,6 +186,10 @@ export function onFocusOut(e) {
   if (!el || !el.matches || !el.matches('[data-edit-input]') || !el.isConnected) return;
   var scope = el.closest('[data-edit-scope]');
   if (scope && e.relatedTarget && scope.contains(e.relatedTarget)) return;
+  if (pendingTap) { /* a button is being pressed: commit when its click arrives */
+    if (pendingTap.skipped.indexOf(el) === -1) pendingTap.skipped.push(el);
+    return;
+  }
   commitEditor(el, false);
 }
 export function onAppInput(e) {

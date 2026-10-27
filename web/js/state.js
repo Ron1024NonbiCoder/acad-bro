@@ -4,7 +4,7 @@
 import { todayISO } from './utils.js';
 
 /* Page order: the top tabs, the phone bottom bar and body.page-* all read this.
-   Labels for the three areas come from DB.areaLabels (renamable); 'all' is a
+   Labels for the three areas come from DB.areaLabels (fixed, not renamable); 'all' is a
    combined view, not an area. */
 export var AREA_IDS = ['living', 'prod', 'hobby'];
 export var PAGE_IDS = ['all'].concat(AREA_IDS);

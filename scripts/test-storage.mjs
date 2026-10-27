@@ -100,7 +100,7 @@ test('normalizeData fills defaults, keeps unknown fields, defaults completion su
     completions: [{ id: 'c1', taskId: 't', date: '2026-10-26', at: 'z' }, { id: 'c2', taskId: 't', subtaskId: 's', date: '2026-10-26', at: 'z' }]
   });
   assert.equal(d.futureField, 7);
-  assert.deepEqual(d.areaLabels, { living: 'Living', prod: 'Work', hobby: 'Hobby' });
+  assert.deepEqual(d.areaLabels, { living: 'Living', prod: 'Prod', hobby: 'Hobby' }, 'labels are fixed: input is ignored');
   assert.deepEqual(d.projects, []);
   assert.equal(d.tasks.length, 1);
   assert.equal(d.completions[0].subtaskId, null);
@@ -280,6 +280,61 @@ test('a tab that never read the stored data does not overwrite what another tab 
   S.DB.tasks.push({ id: 'mine' });
   S.saveData();
   assert.ok(JSON.parse(mem.get(S.STORAGE_KEY)).tasks.some(function (t) { return t.id === 'tab2'; }), 'the other tab task survives');
+});
+
+function importOf(patch) { return S.parseImport(JSON.stringify(Object.assign({ schema: 1 }, patch))); }
+function rep(n, make) { var a = []; for (var i = 0; i < n; i++) a.push(make(i)); return a; }
+
+test('import within the limits has no problems', function () {
+  var res = importOf({
+    projects: [{ id: 'p', name: 'x'.repeat(80), note: 'n'.repeat(2000) }],
+    tasks: [{ id: 't', title: 'y'.repeat(80), note: '', subtasks: rep(30, function (i) { return { id: 's' + i, title: 'z'.repeat(80) }; }) }]
+  });
+  assert.equal(res.ok, true);
+  assert.deepEqual(res.problems, []);
+});
+
+test('import over the limits is flagged with a precise positive message, nothing trimmed', function () {
+  var t = importOf({ tasks: rep(5200, function (i) { return { id: 't' + i, title: 'a' }; }) });
+  assert.equal(t.ok, true);
+  assert.equal(t.problems.length, 1);
+  assert.equal(t.problems[0], 'This file has 5200 tasks. AcadBro holds up to 5000; please trim the file and import again.');
+  assert.equal(t.data.tasks.length, 5200, 'data is untouched (the caller refuses it)');
+
+  var p = importOf({ projects: rep(201, function (i) { return { id: 'p' + i, name: 'a' }; }) });
+  assert.match(p.problems[0], /^This file has 201 projects\. AcadBro holds up to 200; please trim/);
+
+  var nm = importOf({ tasks: [{ id: 't', title: 'x'.repeat(81), subtasks: [{ id: 's', title: 'y'.repeat(90) }] }], projects: [{ id: 'p', name: 'z'.repeat(81) }] });
+  assert.equal(nm.problems.length, 1);
+  assert.match(nm.problems[0], /^3 names in this file are over 80 characters \(the longest has 90\)\. Please shorten them/);
+  assert.equal(nm.data.tasks[0].title.length, 81);
+
+  var nt = importOf({ tasks: [{ id: 't', title: 'a', note: 'n'.repeat(2001) }] });
+  assert.match(nt.problems[0], /^1 note in this file is over 2000 characters \(the longest has 2001\)\. Please shorten it/);
+
+  var sub = importOf({ tasks: [{ id: 't', title: 'a', subtasks: rep(31, function (i) { return { id: 's' + i, title: 'a' }; }) }] });
+  assert.match(sub.problems[0], /^1 task in this file has more than 30 subtasks \(the most is 31\)\. AcadBro holds up to 30 per task/);
+
+  var all = importOf({ tasks: [{ id: 't', title: 'x'.repeat(81), note: 'n'.repeat(2001), subtasks: rep(31, function (i) { return { id: 's' + i, title: 'a' }; }) }] });
+  assert.equal(all.problems.length, 3, 'every kind that is over is listed');
+});
+
+test('import files over 2 MB are refused before parsing, with the reason', function () {
+  assert.equal(S.MAX_IMPORT_BYTES, 2 * 1024 * 1024);
+  assert.equal(S.importSizeError(2 * 1024 * 1024), null);
+  assert.equal(S.importSizeError(100), null);
+  assert.equal(S.importSizeError(3 * 1024 * 1024), 'This file is 3.0 MB. AcadBro imports files up to 2 MB; please choose an AcadBro export.');
+});
+
+test('area labels are fixed: custom labels in input (import, storage, cloud doc) become the defaults', function () {
+  var def = { living: 'Living', prod: 'Prod', hobby: 'Hobby' };
+  assert.deepEqual(importOf({ areaLabels: { living: 'Home', prod: 'Work', hobby: 'Fun', extra: 'x' } }).data.areaLabels, def);
+  assert.deepEqual(importOf({ areaLabels: 'junk' }).data.areaLabels, def);
+  assert.deepEqual(importOf({}).data.areaLabels, def);
+  mem.set(S.STORAGE_KEY, JSON.stringify({ schema: 1, areaLabels: { prod: 'Work' } }));
+  assert.deepEqual(S.loadData().areaLabels, def);
+  assert.equal(S.replaceData({ schema: 1, areaLabels: { prod: 'Work' } }), true);
+  assert.deepEqual(S.DB.areaLabels, def, 'the field stays in the doc (firestore.rules require it)');
 });
 
 console.log('test-storage: ' + n + ' tests passed');
