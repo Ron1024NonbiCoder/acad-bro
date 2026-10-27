@@ -2,3 +2,13 @@ node_modules/
 .env*
 *.log
 .firebase/
+# Android TWA (keystore + password live in C:\Users\Sir\.acadbro-keys, never here)
+*.keystore
+*.jks
+*.apk
+*.aab
+*.idsig
+android/.gradle/
+android/build/
+android/app/build/
+android/**/build/

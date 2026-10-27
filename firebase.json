@@ -11,7 +11,7 @@
   "hosting": {
     "site": "acadbro-166c4",
     "public": "web",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": ["firebase.json", "**/.!(well-known)", "**/.!(well-known)/**", "**/node_modules/**"],
     "headers": [
       {
         "source": "/@(sw.js|index.html|manifest.json)",
@@ -20,6 +20,10 @@
       {
         "source": "/",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "source": "/.well-known/assetlinks.json",
+        "headers": [{ "key": "Content-Type", "value": "application/json" }]
       }
     ]
   }

@@ -49,6 +49,8 @@ Last updated: 2026-10-27 (M5 code complete, not deployed).
 | 2026-10-27 | **Android = TWA first** (wrapper over the hosted PWA, same UI) | M6. Needs `assetlinks.json` + PNG icons. |
 | 2026-10-27 | TWA: **self-installed APK first** (no Play Store yet); package name **`app.acadbro`** (fixed forever once on Play) | Keystore: Claude creates it and sets the password; losing it only means reinstalling (§3). |
 | 2026-10-27 | M6 scope (PO): known bugs, PNG + maskable icons, transitions / no layout jumps, full verifier pass over M1–M5, TWA | Plan: §5 "M6 plan". |
+| 2026-10-27 | **TWA built (M6 step 6)** with Bubblewrap 1.24.1: `android/`, package `app.acadbro`, version 1 (code 1), minSdk 21 / target 35, orientation default (as the web manifest), fallback = Custom Tabs, notifications off, signed with the RSA-2048 key `acadbro` (SHA-256 `7B:C2:CD:01:...:AE:BE:54`, full value in `web/.well-known/assetlinks.json`) | Built APK is **not in git**; copy at `C:\Users\Sir\Downloads\AcadBro-APK\acadbro.apk`. The TWA loads the **live** site, so the phone shows whatever is deployed. |
+| 2026-10-27 | Hosting `ignore`: `**/.*` replaced by `**/.!(well-known)` + `**/.!(well-known)/**`; `/.well-known/assetlinks.json` gets `Content-Type: application/json` | Checked with firebase-tools 15.34 `listFiles` (the deploy file list): the old pattern in fact kept `.well-known/assetlinks.json` (it only matches dot basenames) but let files inside dot-folders through; the new one keeps assetlinks and drops every other dotfile and dot-folder. |
 | 2026-10-27 | Firestore region `asia-northeast1` (Tokyo), Standard edition — set by PO | |
 | 2026-10-26 | Storage shape (proposed): one doc `users/{uid}` written whole, like GymBro | Risk: 1 MB Firestore doc limit. Add a size guard (warn at 800 KB). Revisit if users accumulate large amounts of notes. |
 
@@ -100,6 +102,16 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - Review board fold: `review-board.js foldReviewBoard(render)` pins the body height, collapses it (`.rb-closing`, `--dur`), and re-renders after transitionend (fallback `--dur` + 80ms); taps during the fold are ignored. Opening keeps the `.rb-enter` fade.
 - All three skip the animation under `prefers-reduced-motion: reduce` (the change happens at once).
 - Icons: `web/icon/icon.svg` is the source. PNGs `icon-192.png`, `icon-512.png` (purpose any, transparent corners), `icon-maskable-512.png` (opaque #030303, artwork scaled 0.9 so the ring stays inside the 80% safe zone), `apple-touch-icon.png` (180, opaque) were rendered from it with headless Chrome by a scratchpad script (not in the repo; re-render if the SVG changes). All four are in `manifest.json` / `index.html` / `sw.js` SHELL.
+
+### Android TWA (M6 step 6, built 2026-10-27)
+
+- Project: `android/` (Bubblewrap-generated Gradle project). Source of truth = `android/twa-manifest.json`; `manifest-checksum.txt` = SHA-1 of that file (Bubblewrap compares it to decide whether to regenerate).
+- Toolchain: `~/.bubblewrap/config.json` (shared with other projects on this PC, do not edit): JDK 17 at `C:\Users\Sir\.bubblewrap\jdk-17.0.19+10`, SDK at `C:\Users\Sir\.bubblewrap\android_sdk` (build-tools 35.0.0).
+- Keystore: `C:\Users\Sir\.acadbro-keys\acadbro.keystore` (PKCS12, alias `acadbro`, store password = key password); password in `C:\Users\Sir\.acadbro-keys\password.txt`. Both outside the repo; never commit or print them.
+- Build (Git Bash): `cd "C:/Users/Sir/Downloads/AcadBro/android" && unset NoDefaultCurrentDirectoryInExePath && export BUBBLEWRAP_KEYSTORE_PASSWORD="$(cat /c/Users/Sir/.acadbro-keys/password.txt)" BUBBLEWRAP_KEY_PASSWORD="$(cat /c/Users/Sir/.acadbro-keys/password.txt)" && npx -y @bubblewrap/cli build --skipPwaValidation` -> `android/app-release-signed.apk` (+ `.aab`, both gitignored), then copy to `C:\Users\Sir\Downloads\AcadBro-APK\acadbro.apk`. **Trap:** the Claude shell sets `NoDefaultCurrentDirectoryInExePath=1`, so cmd cannot run `gradlew.bat` from the current folder ("'gradlew.bat' is not recognized") unless it is unset.
+- Changing the app: edit `twa-manifest.json`, bump `appVersionCode` (and `appVersion`; the field is `appVersion`, not `appVersionName`), run `npx -y @bubblewrap/cli update`, then build. `update` re-downloads `iconUrl` / `maskableIconUrl` (live site URLs). For the first build they pointed at a local static server of `web/` (no live call), then were set back to the live URLs and the checksum recomputed.
+- Check: `apksigner verify --print-certs <apk>` (SDK build-tools) SHA-256 must equal `web/.well-known/assetlinks.json`; `aapt dump badging` shows `package: name='app.acadbro'`.
+- Digital Asset Links: `web/.well-known/assetlinks.json` (package + cert SHA-256) must be live at `https://acadbro-166c4.web.app/.well-known/assetlinks.json` for Chrome to hide the URL bar. New key = new fingerprint there + reinstall on the phone.
 
 ### Cloud sync (M5, built 2026-10-27)
 
@@ -185,7 +197,7 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 - (5a, done 2026-10-27: now `scripts/smoke/`, see its README.) First move the headless smoke from the scratchpad into the repo (Chrome over CDP, mocked Firebase via Fetch interception, never the live backend) so later agents can rerun it.
 - The verifier (a fresh agent that has not seen this work) checks every §2/§3 decision against the running app at 360 and 390px and reports gaps; Claude fixes them or lists them in §7.
 
-**Step 6: TWA**
+**Step 6: TWA** (done in code 2026-10-27, see §4 "Android TWA"; assetlinks not live until a hosting deploy)
 - Keystore (PO decision 2026-10-27): the executing agent lets Bubblewrap create it at `C:\Users\Sir\.acadbro-keys\acadbro.keystore` (alias `acadbro`), with a random 24-character password saved next to it in `C:\Users\Sir\.acadbro-keys\password.txt`. Both stay outside the repo and are never printed in chat or in this doc. If lost: make a new key, update `assetlinks.json`, and the PO uninstalls and reinstalls the app.
 - Tool: Bubblewrap (`npx -y @bubblewrap/cli init --manifest https://acadbro-166c4.web.app/manifest.json`), project in `android/` at the repo root. Package `app.acadbro`, name "AcadBro", theme/background `#030303`, start URL `/`.
 - Commit `android/twa-manifest.json` and the generated project; **never commit the keystore**: add `*.keystore`, `*.jks`, `android/**/build/` to `.gitignore`.
@@ -208,7 +220,8 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | done 2026-10-27 | M6 steps 3–4: PNG + maskable + apple-touch icons; transitions (editor expand, board fold, `swapWithFade` page changes, toast timings on tokens), reduced-motion honoured. Tests: storage 22, sync-core 29, tasks-core 28, utils 10 pass; step 1–2 smoke 27/27; motion smoke (390px, motion + reduced) passes, no layout shift without recent input in the 3 flows; Chrome reports no manifest/installability errors. Not deployed, not tried on a real phone |
 | done 2026-10-27 | M6 step 5a: smokes moved from scratchpads into `scripts/smoke/` (m2 53/53, m4 37/37, m5b 139/140 at 390 and 360, m6 27/27, motion 32/32, icons 4/4). The old pre-review `smoke-m5.mjs` was not moved (its mock predates the transactional save; `smoke-m5b.mjs` supersedes it) |
 | done 2026-10-27 | `smoke-m5b.mjs` "recovery copy" check now marks the cloud copy with a cloud-only task (`CloudOnlyTask`) instead of an area label; 140/140 at 390 and 360 |
-| planned 2026-10-27 | M6 steps 5b–6, see §5 "M6 plan" |
+| planned 2026-10-27 | M6 step 5b, see §5 "M6 plan" |
+| done 2026-10-27 (code) | M6 step 6: TWA project `android/`; signed APK at `C:\Users\Sir\Downloads\AcadBro-APK\acadbro.apk` (apksigner verify OK, cert SHA-256 = assetlinks, aapt package `app.acadbro`); `web/.well-known/assetlinks.json` served 200 `application/json` by the local hosting emulator. Tests: storage, sync-core, tasks-core, utils pass. **Not deployed, not installed on any device** |
 | done 2026-10-27 | Toasts no longer cover the header gear / sync dot: the host starts below the header (`top: 66px`). smoke-m6 checks it at 360/390 with 3 toasts (+ negative control) |
 | done 2026-10-27 | Verifier fix pass (7 items, see §7 and §8). Tests: storage 26, sync-core 29, tasks-core 28, utils 10; smokes: icons 4/4, m6 33/33, motion 32/32 × 5 runs, m2 53/53, m4 37/37, m5b 140/140 at 390 and 360. Not deployed |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
@@ -229,6 +242,8 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | suspended 2026-10-27 | Run the M5 QA checklist on phone + desktop. **PO: QA paused until the app is more complete.** Checklist (12 steps): login uploads local data; wrong-password message; second device login keeps a recovery copy; foreground pull; airplane-mode edit (orange dot); offline cold start (SDK cache); back online ("Back in sync"); offline edits on both -> conflict sheet; both choices + Recovery copy; restore + Undo; logout warning; M1–M4 regression. |
 | done 2026-10-27 | Deploy approved; Claude deployed rules + indexes, then hosting (commit `193436d`). Verified: live title "AcadBro", `sw.js` = `acadbro-v5`, live rules = repo rules, anonymous read of `users/x` -> 403. Auth now answers (0 users). |
 | deferred | Timezone choice (§3): edge case, later. |
+| open | **Approve a hosting deploy** so `/.well-known/assetlinks.json` (and the M6 web changes) go live. Until then the TWA opens with a URL bar. |
+| open | After that deploy: copy `C:\Users\Sir\Downloads\AcadBro-APK\acadbro.apk` to the phone, install it (allow "install unknown apps"), open AcadBro and check there is **no URL bar**. If the URL bar shows, the cause is a fingerprint mismatch between assetlinks and the signing key (or the deploy is not live yet / Chrome cached an old check: clear Chrome's data or reinstall). |
 | open | Hand-test sync on a real phone + desktop (conflict, offline edit, log out/in). |
 | done 2026-10-26 | Decided: **login-only** for now (like GymBro; accounts created by hand in the console). Sign-up can be added later. |
 
@@ -248,6 +263,8 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | fixed 2026-10-26 | Review board header "LAST 7 DAYS" overlapped the first day column. Label is now "7 days" and the column is 64px. |
 
 ## 8. Changelog
+
+- 2026-10-27: **M6 step 6: Android TWA (not deployed, not installed).** New `android/` (Bubblewrap 1.24.1, package `app.acadbro`, v1); keystore + password outside the repo (`C:\Users\Sir\.acadbro-keys\`); signed APK copied to `C:\Users\Sir\Downloads\AcadBro-APK\acadbro.apk` (not in git). New `web/.well-known/assetlinks.json`. `firebase.json` hosting: ignore narrowed to keep `.well-known`, JSON content type for assetlinks (the only firebase.json change). `.gitignore`: keystores, APK/AAB/idsig, Android build dirs. `sw.js` not bumped (assetlinks is not in the SW cache; nothing the SW serves changed). `firestore.rules`, `web/js/*` untouched.
 
 - 2026-10-27: **Verifier fix pass (not deployed).** (1) `styles.css .toast-host` starts at `top: 66px` (below the header), so the gear and sync dot stay tappable; new smoke-m6 checks (27 -> 33). (2) `storage.js keepCorruptCopy` / `recoveredMessage`: 3 rotating corrupt-copy slots, honest messages; `main.js` uses `recoveredMessage`. (3) `shell.js swapWithFade` swaps only after the fade-out ends (timer re-checks opacity, hard cap). (4) "Show completed" Undo now raises "Undone: ..." + Redo (`tasks-actions.js applyShowCompleted`); import asks Import / Cancel when its backup cannot be stored (`page-settings.js applyImport`); the monthly "shorter months" hint is always in the markup and toggled (`.is-off`, visibility only, no layout shift) on day change. (5) `sw.js`: SDK in `acadbro-sdk-12.16.0`, kept across app cache bumps; `acadbro-v7` -> `acadbro-v8`. (6) §4 cloud-doc field list now includes `rev`. (7) `smoke-m5b.mjs` recovery-copy marker = cloud-only task. Item 4 was checked with a scratch CDP script (hint toggles with equal panel height; Undo -> Redo -> Undo; import backup failure: Cancel keeps data, Import applies), not added to the repo smokes. Left as is: the 30-subtask limit (input disabled with "Subtask limit reached (30)", not silent). `firestore.rules`, `firebase.json`, `auth.js` untouched.
 

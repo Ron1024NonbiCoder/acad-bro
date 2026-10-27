@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.acadbro",
+      "sha256_cert_fingerprints": [
+        "7B:C2:CD:01:B2:95:5D:F1:DF:94:76:78:68:C2:C5:02:A2:58:B0:78:A0:35:73:D8:99:81:09:D4:2E:AA:BE:54"
+      ]
+    }
+  }
+]
