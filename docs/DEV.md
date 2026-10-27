@@ -46,7 +46,9 @@ Last updated: 2026-10-27 (M5 code complete, not deployed).
 | 2026-10-27 | **PO confirmed** the M5 choices above (lazy SDK, recovery copy on first login, foreground re-check, single recovery slot) and the §3 defaults | |
 | 2026-10-27 | Per-save cloud check: PO said "edge case, not now", but the code **already has it**: `auth.js` saves inside `runTransaction` that only commits while the doc carries the `rev` this device last saw (rules require `rev`). The §7 "known gap" row was stale; corrected | Found while verifying the live rules after deploy. |
 | 2026-10-27 | **Firebase SDK cached by the service worker** (cache-first, versioned URL, cached on first use) so an offline launch while signed in can still sync later | `sw.js` `SDK_PREFIX` must match `cloud.js` `SDK_BASE` when the SDK version is bumped. |
-| 2026-10-27 | **Android = TWA first** (Play Store wrapper over the hosted PWA, same UI) | M6. Needs `assetlinks.json` + PNG icons. |
+| 2026-10-27 | **Android = TWA first** (wrapper over the hosted PWA, same UI) | M6. Needs `assetlinks.json` + PNG icons. |
+| 2026-10-27 | TWA: **self-installed APK first** (no Play Store yet); package name **`app.acadbro`** (fixed forever once on Play) | Keystore custody still open (§3). |
+| 2026-10-27 | M6 scope (PO): known bugs, PNG + maskable icons, transitions / no layout jumps, full verifier pass over M1–M5, TWA | Plan: §5 "M6 plan". |
 | 2026-10-27 | Firestore region `asia-northeast1` (Tokyo), Standard edition — set by PO | |
 | 2026-10-26 | Storage shape (proposed): one doc `users/{uid}` written whole, like GymBro | Risk: 1 MB Firestore doc limit. Add a size guard (warn at 800 KB). Revisit if users accumulate large amounts of notes. |
 
@@ -64,6 +66,8 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - [x] 2026-10-27 Areas: *fixed 3 areas, labels renamable.*
 - [ ] Timezone handling (travel across zones): **PO 2026-10-27: edge case, decide later.** Built as: follow the device timezone. Options when revisited: (2) fixed home timezone in the profile, synced; (3) device timezone + a toast when the timezone changes; plus an optional "day starts at HH:00" for late nights. Switching later only affects new records (stored `date` is never rewritten).
 - [x] 2026-10-26 Input limits accepted: name 80 chars, note 2000, 30 subtasks per task, 200 projects, 5000 tasks. Hitting a limit shows a toast (never a silent reject).
+- [ ] TWA keystore custody (blocks M6 step 6). Every Android APK must be signed, Capacitor included. *Recommended: Bubblewrap creates the keystore on this PC outside the repo, the PO sets the password and backs it up.*
+- [ ] Claude defaults in the M6 plan to confirm: import over the limits is refused with an explanation (no truncation), import files over 2 MB refused, area rename in Settings > Areas (max 20 chars).
 - [x] 2026-10-27 Priority levels: *none / low / med / high.*
 - [x] 2026-10-27 Project archive vs delete: *both; archive hides the project but keeps its history.*
 - [x] 2026-10-27 Legal / disclaimer / privacy text: *none until public release.*
@@ -98,7 +102,7 @@ Defaults in *italics* are what gets built if no answer comes. Each is written so
 - Load verdict (`decideOnLoad`): not dirty or data belongs to another account -> apply cloud (local copy kept as recovery first when it belongs to no account/another); dirty and cloud == BASE -> upload local; dirty and cloud moved on -> conflict sheet. If not dirty and cloud == BASE nothing is swapped (no re-render).
 - Uploads are off until the account's doc has been fetched (`cloudReady`). Debounce 1 s; flush on `pagehide`/hidden; the dirty marker is cleared only when the acknowledged write's token still matches; retry 2/5/15/30/60 s, plus on `online` and on foreground. A write unacknowledged after 15 s is reported ("taking a while"), never waited on silently.
 - Messages are positive and each says what to do next (see `ERRORS` / `LOGIN_ERRORS` in auth.js). Log out: tries one last upload (4 s cap), keeps local data, and warns if edits are still unsynced.
-- Tests: `node scripts/test-sync-core.mjs` (20). Headless smoke with a mocked Firebase SDK (login, save, rejected save + recovery, both conflict choices, restore + undo, logout, SDK unreachable) was run from a scratchpad script (not in the repo); it served the mock through CDP Fetch interception, so no live backend was touched.
+- Tests: `node scripts/test-sync-core.mjs` (29 as of 2026-10-27; storage 18). Headless smoke with a mocked Firebase SDK (login, save, rejected save + recovery, both conflict choices, restore + undo, logout, SDK unreachable) was run from a scratchpad script (not in the repo); it served the mock through CDP Fetch interception, so no live backend was touched.
 
 ### Data model (draft v1)
 
@@ -140,6 +144,48 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 - New root files: `firebase.json` (auth emailPassword, firestore rules, hosting `public: web`), `.firebaserc` (default `acadbro-166c4`), `firestore.rules` (owner-only on `users/{uid}`, delete denied, all else denied, schema/size caps), `firestore.indexes.json`.
 - Rule ordering: deploy rules **before** shipping client fields that need them. No deploy without Product Owner OK.
 
+### M6 plan (2026-10-27, written for handoff to an executing agent)
+
+Facts come from a repo scan on 2026-10-27; re-check line numbers before editing. Steps 1–5 are not blocked by any open decision; step 6 waits for the keystore answer (§3). After each step: run all `node scripts/test-*.mjs`, bump the SW cache in `web/sw.js` if anything under `web/` changed, update this doc (§6/§7/§8), commit. **No deploy and no phone install without the PO's OK.**
+
+**Step 1: the two known bugs (§7)**
+- 1a. *Editor open, first tap elsewhere is swallowed.* Cause: `events.js` `onFocusOut` (~:129-135) commits on blur, `commitEditor` (`tasks-actions.js` ~:449-513) calls `render()` (`shell.js` ~:125-146), which replaces `#app-root`, so the pressed button is detached before `click` fires. `relatedTarget` cannot be trusted (it is null for buttons on iOS Safari). Fix: a capture-phase `pointerdown` listener records the `[data-action]` element pressed outside the edit scope (`pendingTap`). `onFocusOut` skips the commit while `pendingTap` is set; `onAppClick` commits the open editor first, then runs the tapped action from the dataset it read before the re-render. Clear `pendingTap` on `click`, or after 600 ms (drag/scroll): then commit as today. Esc still cancels; Enter still commits.
+  Accept: headless smoke at 390px: open rename, type, tap another task's tray button, then both the "Saved" toast and the tapped action happen; same for note and add editors; a scroll gesture still commits.
+- 1b. *Stacked toasts cover the Manage sheet's close button.* Toast host is top-right, z 60 (`styles.css` ~:779-790); sheet z 50, max-height `calc(100dvh - 48px)`, close button in `.sheet-head` (`index.html` ~:58). Fix: while a sheet is open (existing body/layer state in `layers.js`), give the toast host `right: 56px` so the right edge stays clear. No layout change to the sheet.
+  Accept: at 360 and 390px with 3 toasts and Manage open, `elementFromPoint` at the close button's centre returns the button.
+
+**Step 2: limit gaps found in the scan**
+- Import (`storage.js` `parseImport` ~:241) does not check `LIMITS` (`tasks-core.js` ~:16). Claude default: the preview sheet checks counts and lengths; if anything is over, the import is not applied and the sheet says exactly what is over, in positive wording ("This file has 5200 tasks. AcadBro holds up to 5000; please trim the file and import again."). No silent truncation. Also refuse files over 2 MB before parsing, with a message.
+- Login fields (`page-account.js` ~:156/:159): `maxlength` 254 (email) / 128 (password).
+- **Area label rename has no UI** although §3 says labels are renamable (PO confirmed). Claude default: Settings > Areas, three rows edited in place (max 20 chars; empty resets to the default name), auto-save with a "Renamed" toast + Undo → Redo through the normal `commit()` path, so it syncs (areaLabels is cloud data, not device settings).
+  Accept: unit tests for the import checks in `test-storage.mjs`; smoke for rename + undo.
+
+**Step 3: PNG + maskable icons**
+- Today: only `web/icon/icon.svg`; the manifest has one SVG icon; no apple-touch-icon.
+- Make `icon-192.png`, `icon-512.png` (purpose `any`), `icon-maskable-512.png` (purpose `maskable`, artwork inside the central 80%, background `#030303`), `apple-touch-icon.png` 180×180, no transparency. Render them from the SVG with headless Chrome (no new npm dependency in the repo); commit only the PNGs. Update `manifest.json` icons, add `<link rel="apple-touch-icon">` to `index.html`, add the icons to `SHELL` in `sw.js`.
+  Accept: a script reads each PNG header and confirms its size; the Chrome DevTools manifest pane shows no icon warnings.
+
+**Step 4: transitions and layout jumps**
+- Tokens exist (`styles.css` ~:68-69: `--ease-out`, `--dur-fast` 160ms, `--dur` 220ms, `--dur-slow` 300ms). Replace hard-coded toast timings (~:809/:813) with tokens; keep `toast.js` `EXIT_MS` in step with them.
+- Three jumps to fix, each with a one-shot class like the existing `.rb-enter`:
+  a. Opening an editor (`tasks-actions.js` ~:342 `openEditing` → `render()`): editor row expands and fades in (`grid-template-rows: 0fr → 1fr` + opacity, `--dur-fast`).
+  b. Folding the review board (`events.js` ~:57): collapse is instant today; animate the close too, and render after `transitionend` (with a timeout fallback).
+  c. Settings view swap (`shell.js` ~:129-131): add a shared `swapWithFade()` helper in `shell.js` (fade out, swap, fade in) and use it for every page change, so all pages transition the same way.
+- All of them honour `prefers-reduced-motion` (existing overrides near `styles.css` :665/:842/:896/:943).
+  Accept: headless smoke with a `PerformanceObserver('layout-shift')` shows no shifts outside user-input windows in these three flows; screenshots before/after for the verifier.
+
+**Step 5: fresh-context verifier pass over M1–M5**
+- First move the headless smoke from the scratchpad into the repo as `scripts/smoke.mjs` (Chrome over CDP, mocked Firebase via Fetch interception, never the live backend) so later agents can rerun it.
+- The verifier (a fresh agent that has not seen this work) checks every §2/§3 decision against the running app at 360 and 390px and reports gaps; Claude fixes them or lists them in §7.
+
+**Step 6: TWA (blocked on the keystore answer)**
+- Tool: Bubblewrap (`npx -y @bubblewrap/cli init --manifest https://acadbro-166c4.web.app/manifest.json`), project in `android/` at the repo root. Package `app.acadbro`, name "AcadBro", theme/background `#030303`, start URL `/`.
+- Commit `android/twa-manifest.json` and the generated project; **never commit the keystore**: add `*.keystore`, `*.jks`, `android/**/build/` to `.gitignore`.
+- Add `web/.well-known/assetlinks.json` (package name + SHA-256 of the signing certificate). **Trap:** `firebase.json` hosting `ignore` has `"**/.*"`, which drops `.well-known/`. Narrow that pattern, then confirm the file is served as JSON with a 200.
+- `bubblewrap build` → signed APK. The PO installs it on the phone (Claude does not touch devices).
+  Accept: `https://acadbro-166c4.web.app/.well-known/assetlinks.json` returns 200 JSON; the app opens with no URL bar (PO, on the device). If the URL bar shows, the fingerprint in assetlinks does not match the key.
+- Data: a TWA runs in Chrome and shares Chrome's storage for this site, so local data is the same as the installed PWA on that phone; signed-in data is also in the cloud.
+
 ## 6. To-dos
 
 ### Claude
@@ -150,7 +196,7 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | done 2026-10-27 | M4 review board + per-project heatmaps (`web/js/review-board.js`; pure logic in tasks-core.js; tests 13+28+10 pass; headless smoke at 390 and 360px passes) |
 | done 2026-10-27 (code) | M5 auth + sync built and machine-tested against a mocked SDK (tests 20+13+28+10 pass; rules checked on the Firestore emulator). **Not tested against the live backend**: needs the PO steps below, then a real two-device pass |
 | pending | M5 live test: log in, edit, confirm a second device/browser sees it; force a conflict (edit offline on both) and try both choices + Restore |
-| pending | M6 |
+| planned 2026-10-27 | M6, see §5 "M6 plan". Steps 1–5 ready to hand off; step 6 (TWA) waits on the keystore answer |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
 | pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
 | pending | PNG icons (iOS ignores SVG apple-touch-icon) |
