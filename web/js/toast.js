@@ -12,11 +12,15 @@
 
 import { escapeHtml } from './utils.js';
 import { tick } from './haptics.js';
+import { tokenMs } from './motion.js';
 
 var PLAIN_MS = 4000;
 var ACTION_MS = 8000;
 var MAX_VISIBLE = 3; /* older toasts retire early rather than filling the screen */
-var EXIT_MS = 220;   /* must match the .toast exit transition in styles.css */
+var EXIT_MS = 220;   /* fallback only: the exit waits for the --dur token the .toast transition uses */
+
+/* read per exit (CSS may load after this module), so it never drifts from styles.css */
+function exitMs() { return tokenMs('--dur', EXIT_MS); }
 
 var seq = 0;
 var live = []; /* [{ id, node, timer, actions }] -- oldest first */
@@ -45,7 +49,7 @@ function drop(rec) {
   rec.node = null;
   setTimeout(function () {
     if (node.parentNode) node.parentNode.removeChild(node);
-  }, EXIT_MS);
+  }, exitMs());
 }
 
 export function dismissToast(id) {

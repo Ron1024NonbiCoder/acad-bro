@@ -10,7 +10,7 @@ import { settleStripScroll } from './day-strip.js';
 import { closeTray, consumeSwipeEntryClick, runTrayAction } from './swipe-entry.js';
 import { consumeLongPressClick } from './long-press.js';
 import { tickLanded, tickNav, tickOff } from './haptics.js';
-import { pickReviewCell, toggleReviewBoard, toggleReviewRow } from './review-board.js';
+import { foldReviewBoard, pickReviewCell, toggleReviewRow } from './review-board.js';
 import {
   askAnswer, chooseVersion, confirmDiscardRecovery, confirmRestore, exportRecoveryCopy, logOut, openLogin,
   openRelogin, openRestore, reloadAppClicked, retrySignInService, setDiscardConfirm, submitLogin, syncNowClicked
@@ -109,7 +109,7 @@ export function onAppClick(e) {
     case 'switch-page': switchPage(ds.page); break;
     case 'select-day': selectDay(ds.date); break;
     case 'nav-today': selectDay(todayISO()); break;
-    case 'review-fold': toggleReviewBoard(); render(); break;
+    case 'review-fold': foldReviewBoard(render); break;
     case 'review-row': toggleReviewRow(ds.key); render(); break;
     case 'review-cell': pickReviewCell(ds.date); render(); break;
     case 'open-settings': openSettings(); break;

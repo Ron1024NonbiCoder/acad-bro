@@ -472,6 +472,38 @@ h1, h2, h3, p { margin: 0; }
 @keyframes rb-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .rb-enter { animation: rb-fade var(--dur) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .rb-enter { animation: none; } }
+/* folding the board: review-board.js pins the current height, then this class
+   collapses it; the render that removes the body runs after transitionend */
+.rb-body.rb-closing {
+  overflow: hidden;
+  height: 0 !important;
+  opacity: 0;
+  padding-bottom: 0;
+  transition: height var(--dur) var(--ease-out), opacity var(--dur-fast) ease, padding-bottom var(--dur) var(--ease-out);
+}
+
+/* an editor that just opened (tasks-actions.js openEditing -> ui.editorEnter):
+   page-tasks.js wraps it once in .ed-enter > .ed-enter-inner, and the row grows
+   from 0 (or from --ed-from, the height of what it replaces) while fading in */
+@keyframes ed-expand {
+  from { grid-template-rows: 0fr; opacity: 0; }
+  to { grid-template-rows: 1fr; opacity: 1; }
+}
+.ed-enter { display: grid; grid-template-rows: 1fr; min-height: var(--ed-from, 0px); animation: ed-expand var(--dur-fast) var(--ease-out) both; }
+.ed-enter-inner { min-height: 0; display: flow-root; overflow: hidden; overflow: clip; overflow-clip-margin: 4px; }
+.ed-enter.from-add { --ed-from: 48px; } /* .add-row margin 8 + .add-btn 40 */
+@media (prefers-reduced-motion: reduce) {
+  .ed-enter { animation: none; min-height: 0; }
+  .rb-body.rb-closing { transition: none; }
+}
+
+/* page changes (shell.js swapWithFade): fade the old view out, swap while
+   hidden, fade the new one in (removing .swap-out runs the same transition back) */
+#app-root { transition: opacity var(--dur-fast) ease; }
+#app-root.swap-out { opacity: 0; pointer-events: none; } /* no taps on the view that is leaving */
+@media (prefers-reduced-motion: reduce) {
+  #app-root { transition: none; }
+}
 
 /* ---------- heatmap (opens under its row) ---------- */
 .hm { padding: 2px 4px 8px; }
@@ -813,11 +845,11 @@ body.sheet-open .toast-host {
   /* start off-screen to the right; .shown slides it home */
   transform: translateX(calc(100% + 16px));
   opacity: 0;
-  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.24s ease;
+  transition: transform var(--dur) var(--ease-out), opacity var(--dur) ease;
 }
 .toast.shown { transform: translateX(0); opacity: 1; }
-/* 220ms here must stay in step with EXIT_MS in js/toast.js */
-.toast.leaving { transform: translateX(calc(100% + 16px)); opacity: 0; transition-duration: 0.22s; }
+/* --dur (220ms) here must stay in step with EXIT_MS in js/toast.js */
+.toast.leaving { transform: translateX(calc(100% + 16px)); opacity: 0; transition-duration: var(--dur); }
 .toast-good { border-left-color: var(--teal); }
 .toast-warn { border-left-color: var(--orange); }
 .toast-msg { line-height: 1.35; }
@@ -847,7 +879,7 @@ body.sheet-open .toast-host {
   padding: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .toast { transition: opacity 0.2s ease; transform: none; }
+  .toast { transition: opacity var(--dur) ease; transform: none; }
   .toast.leaving { transform: none; }
 }
 

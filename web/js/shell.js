@@ -17,6 +17,7 @@ import { closeTray } from './swipe-entry.js';
 import { renderTaskArea, manageSheetHtml } from './page-tasks.js';
 import { renderReviewBoard } from './review-board.js';
 import { cancelEditing, postRenderFocus } from './tasks-actions.js';
+import { afterTransition, reducedMotion, tokenMs } from './motion.js';
 
 /* Page order is state.js PAGE_IDS: the top tabs, the phone bottom bar
    (index.html) and body.page-* all follow it. */
@@ -79,14 +80,18 @@ export function closeSheet() {
 
 export function openSettings() {
   clearActive();
-  ui.view = 'settings';
-  render();
-  window.scrollTo(0, 0);
+  swapWithFade(function () {
+    ui.view = 'settings';
+    render();
+    window.scrollTo(0, 0);
+  });
 }
 export function closeSettings() {
-  ui.view = 'main';
-  ui.sheet = null;
-  render();
+  swapWithFade(function () {
+    ui.view = 'main';
+    ui.sheet = null;
+    render();
+  });
 }
 
 /* Escape / hardware Back: close the topmost layer. Returns true if one closed. */
@@ -101,18 +106,42 @@ export function closeTopLayer() {
 /* Back pressed (layers.js popped a tag): drop that layer's ui state */
 setLayerCloser(function (tag) {
   if (tag === 'sheet') { if (!sheetLocked()) { ui.sheet = null; ui.editing = null; } }
-  else if (tag === 'settings') { ui.view = 'main'; ui.sheet = null; }
+  else if (tag === 'settings') { swapWithFade(function () { ui.view = 'main'; ui.sheet = null; render(); }); return; }
   render();
 });
 
 /* ================= navigation ================= */
+/* Every page change (area tabs / bottom nav, Settings in and out, Back) goes
+   through here so they all transition the same way: #app-root fades out
+   (--dur-fast), `change` swaps the view while it is invisible, then it fades
+   back in. A change requested mid-fade first finishes the pending one, so
+   nothing is dropped. Reduced motion: `change` runs at once. */
+var pendingSwap = null;
+export function swapWithFade(change) {
+  if (pendingSwap) pendingSwap();
+  var root = document.getElementById('app-root');
+  if (!root || reducedMotion()) { change(); return; }
+  var run = function () {
+    if (pendingSwap !== run) return;
+    pendingSwap = null;
+    change();
+    root.classList.remove('swap-out'); /* the same opacity transition fades the new view in */
+  };
+  pendingSwap = run;
+  root.classList.add('swap-out');
+  afterTransition(root, 'opacity', tokenMs('--dur-fast', 160) + 80, run);
+}
+
 export function switchPage(id) {
+  if (pendingSwap) pendingSwap(); /* judge "already there" against the page being faded to */
   if (PAGE_IDS.indexOf(id) === -1 || (id === ui.page && ui.view === 'main')) return;
   tickNav();
   clearActive();
-  ui.page = id;
-  ui.view = 'main';
-  render();
+  swapWithFade(function () {
+    ui.page = id;
+    ui.view = 'main';
+    render();
+  });
 }
 
 export function selectDay(iso) {
@@ -141,6 +170,7 @@ export function render() {
   if (ui.view === 'settings') layers.push('settings');
   if (sheet) layers.push('sheet');
   syncBackStack(layers);
+  ui.editorEnter = false; /* the expand-in plays on the opening render only */
   if (ui.view === 'main') parkStrip();
   postRenderFocus();
 }

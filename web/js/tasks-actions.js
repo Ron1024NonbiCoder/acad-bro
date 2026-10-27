@@ -341,6 +341,7 @@ function openEditing(ed) {
   closeTray();
   ui.editing = ed;
   ui.focusPending = true;
+  ui.editorEnter = true;
   render();
 }
 function activeInput() { return document.querySelector('[data-edit-input]:not([data-edit-input="add-subtask"])'); }

@@ -84,6 +84,12 @@ function groupOrder(list, cx) {
 }
 
 /* ================= pieces ================= */
+/* An editor on the render that opened it (ui.editorEnter, set by openEditing)
+   is wrapped once so it expands + fades in (styles.css .ed-enter) instead of
+   cutting in; every later render emits it bare. */
+function enterWrap(html, cls) {
+  return ui.editorEnter ? '<div class="ed-enter' + (cls ? ' ' + cls : '') + '"><div class="ed-enter-inner">' + html + '</div></div>' : html;
+}
 function nameInput(type, value, placeholder, extra) {
   return '<input type="text" class="name-input" data-edit-input="' + type + '" data-limit="name" maxlength="' + LIMITS.name + '"'
     + ' value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(placeholder) + '" aria-label="' + escapeHtml(placeholder) + '"'
@@ -127,13 +133,13 @@ function addRowHtml() {
   var opts = '<option value="">No project</option>' + activeProjects(ed.area).map(function (p) {
     return '<option value="' + escapeHtml(p.id) + '"' + (ed.projectId === p.id ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
   }).join('');
-  return '<div class="add-row add-form" data-edit-scope="add">'
+  return enterWrap('<div class="add-row add-form" data-edit-scope="add">'
     + nameInput('add-task', ed.text || '', 'New task in ' + areaName(ed.area))
     + areaChips
     + '<div class="add-opts"><select data-draft="add-project" aria-label="Project (optional)">' + opts + '</select>'
     + '<button type="button" class="btn primary" data-action="save-add">Add</button>'
     + '<button type="button" class="btn" data-action="cancel-edit">Cancel</button></div>'
-    + '</div>';
+    + '</div>', 'from-add');
 }
 
 /* ================= task row ================= */
@@ -228,7 +234,7 @@ function expandedHtml(t, cx) {
   var ed = ui.editing;
   var parts = [panelHtml(t, cx)];
   if (ed && ed.type === 'task-note' && ed.id === t.id) {
-    parts.push('<div class="task-note-edit">' + noteArea('task-note', t.note || '', 'Note') + '</div>');
+    parts.push(enterWrap('<div class="task-note-edit">' + noteArea('task-note', t.note || '', 'Note') + '</div>'));
   } else if (t.note) {
     parts.push('<p class="task-note" data-action="edit-task-note" data-task-id="' + escapeHtml(t.id) + '" title="Edit note">' + escapeHtml(t.note) + '</p>');
   }
@@ -379,7 +385,7 @@ function manageRowHtml(p) {
     + '<div class="manage-top"><div class="manage-main">'
     + (renaming ? nameInput('project-rename', p.name, 'Project name', ' data-select-all="1"') : '<div class="manage-name">' + escapeHtml(p.name) + '</div>')
     + '<div class="manage-meta">' + escapeHtml(meta) + '</div></div></div>'
-    + (noting ? '<div class="manage-note-edit">' + noteArea('project-note', p.note || '', 'Project note') + '</div>' : '')
+    + (noting ? enterWrap('<div class="manage-note-edit">' + noteArea('project-note', p.note || '', 'Project note') + '</div>') : '')
     + '<div class="manage-actions">' + actions + '</div>'
     + confirm + '</div>';
 }
@@ -393,9 +399,9 @@ export function manageSheetHtml(sheet) {
     return '<div class="manage-area area-' + a + '"><div class="settings-group-label">' + escapeHtml(areaName(a)) + '</div>'
       + (list.length ? list.map(manageRowHtml).join('') : '<p class="empty-sub">No projects yet</p>')
       + (adding
-        ? '<div class="add-form" data-edit-scope="project">' + nameInput('add-project', ed.text || '', 'New project in ' + areaName(a))
+        ? enterWrap('<div class="add-form" data-edit-scope="project">' + nameInput('add-project', ed.text || '', 'New project in ' + areaName(a))
           + '<div class="add-opts"><button type="button" class="btn primary" data-action="save-add">Add</button>'
-          + '<button type="button" class="btn" data-action="cancel-edit">Cancel</button></div></div>'
+          + '<button type="button" class="btn" data-action="cancel-edit">Cancel</button></div></div>')
         : '<button type="button" class="btn add-project-btn" data-action="new-project" data-area="' + a + '">+ New project</button>')
       + '</div>';
   }).join('');

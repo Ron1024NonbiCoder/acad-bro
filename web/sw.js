@@ -14,7 +14,7 @@
    they are immutable: cache-first, cached on first use. This lets a signed-in
    user who launches offline still load the SDK. */
 
-const CACHE = 'acadbro-v6';
+const CACHE = 'acadbro-v7';
 const SDK_PREFIX = 'https://www.gstatic.com/firebasejs/12.16.0/';
 
 /* Precached resiliently so one missing URL can't abort install. JS modules get
@@ -26,6 +26,10 @@ const SHELL = [
   './manifest.json',
   './styles.css',
   './icon/icon.svg',
+  './icon/icon-192.png',
+  './icon/icon-512.png',
+  './icon/icon-maskable-512.png',
+  './icon/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {

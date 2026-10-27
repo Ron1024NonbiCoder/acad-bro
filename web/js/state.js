@@ -33,6 +33,7 @@ export var ui = {
   addProjectId: null,   /* last project chosen in the Add form */
   focusPending: false,  /* render() focuses [data-autofocus] once, then clears this */
   focusSubtaskFor: null, /* taskId whose add-subtask input should regain focus */
+  editorEnter: false,   /* one-shot: the editor openEditing() just opened expands in (.ed-enter); render() clears it */
 
   /* ---- M4: review board (review-board.js) ---- */
   reviewRow: null,  /* row key ('p:<id>' | 'loose:<area>') whose heatmap is open; one at a time */

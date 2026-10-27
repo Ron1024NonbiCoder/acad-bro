@@ -18,6 +18,7 @@ import { DB } from './storage.js';
 import { settings, setSetting, weekStartDow } from './settings.js';
 import { escapeHtml, addDays, fmtISO, parseISO, shortWeekdayDate, todayISO, MONTH_SHORT, WEEKDAY_SHORT } from './utils.js';
 import { activityIndex, heatmapGrid, reviewGroups, windowDays } from './tasks-core.js';
+import { afterTransition, reducedMotion, tokenMs } from './motion.js';
 
 var DAYS = 7;
 var HEAT_WEEKS = 12;
@@ -37,6 +38,27 @@ export function toggleReviewBoard() {
   var show = !settings.reviewShown;
   setSetting('reviewShown', show);
   enterKey = show ? 'board' : null;
+}
+/* The title-bar tap. Opening re-renders at once (the body fades in via
+   .rb-enter); closing first collapses the body in place (.rb-closing: pinned
+   height -> 0 + fade) and re-renders only after that transition ends, so the
+   content below slides up instead of jumping. Taps during the fold are ignored. */
+var folding = false;
+export function foldReviewBoard(render) {
+  if (folding) return;
+  var body = settings.reviewShown && typeof document !== 'undefined' ? document.querySelector('.review-board .rb-body') : null;
+  if (!body || reducedMotion()) { toggleReviewBoard(); render(); return; }
+  folding = true;
+  var chev = document.querySelector('.rb-top .chev');
+  if (chev) chev.classList.add('is-folded'); /* the chevron answers the tap at once */
+  body.style.height = body.offsetHeight + 'px';
+  void body.offsetHeight; /* commit the pinned height so the collapse transitions from it */
+  body.classList.add('rb-closing');
+  afterTransition(body, 'height', tokenMs('--dur', 220) + 80, function () {
+    folding = false;
+    toggleReviewBoard();
+    render();
+  });
 }
 export function toggleReviewRow(key) {
   clearActive();
