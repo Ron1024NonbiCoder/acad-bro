@@ -21,7 +21,7 @@ request reaches that interception). The live Firebase backend is never contacted
 | Script | Checks | Command |
 |---|---|---|
 | `check-icons.mjs` | PNG icon sizes (IHDR) in `web/icon/` | `node scripts/smoke/check-icons.mjs` |
-| `smoke-m6.mjs` | M6 steps 1-2: tap-while-editing, toast vs sheet close at 360/390, import limits + 2 MB cap (27 checks) | `node scripts/smoke/smoke-m6.mjs` |
+| `smoke-m6.mjs` | M6 steps 1-2: tap-while-editing, toasts vs header gear/sync dot and vs sheet close at 360/390, import limits + 2 MB cap (33 checks) | `node scripts/smoke/smoke-m6.mjs` |
 | `smoke-motion.mjs` | M6 step 4: no layout shift outside input windows, reduced motion (32 checks) | `node scripts/smoke/smoke-motion.mjs` |
 
 Optional args for m6/motion: `[webRoot] [label]` (webRoot defaults to `<repo>/web`).
@@ -44,7 +44,6 @@ PowerShell: `$env:W='360'; node scripts/smoke/smoke-m5b.mjs <port>`.
 
 ## Known
 
-- `smoke-m5b.mjs` check "cloud version kept as recovery copy (kept=local, CloudLiving label)" fails since M6 step 2:
-  area labels are fixed (`normalizeData` resets them), so the cloud-only label it uses as a marker is dropped.
-  The check needs a different marker; left as is pending a decision (see docs/DEV.md §6).
+- `smoke-m5b.mjs` marks the cloud copy in the "recovery copy" check with a cloud-only task (`CloudOnlyTask`):
+  area labels are fixed since M6 step 2, so a label marker would be reset.
 - All PASS/`ok` lines go to stdout; exit code 0 means every check passed.

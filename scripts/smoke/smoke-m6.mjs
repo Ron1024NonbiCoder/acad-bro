@@ -171,6 +171,29 @@ try {
   ok = await until(`JSON.parse(localStorage.getItem('acadbro-data-v1')).tasks.find(function(t){return t.id==='t1';}).title.slice(-1)==='!'`, 2000);
   check('plain blur: edit commits', ok);
 
+  /* ===== Toasts vs header controls at 360 and 390: 3 toasts, gear + sync dot stay tappable ===== */
+  for (const w of [360, 390]) {
+    await load(w);
+    await ev(`document.getElementById('sync-dot').classList.remove('hidden');true`); /* shown only when signed in; unhide for the probe */
+    await ev(`import('/js/toast.js').then(function(m){ ['One','Two','Three'].forEach(function(s){ m.showToast({message:'Toast '+s+' with a longer message to take space', actions:[{label:'Undo',primary:true,onClick:function(){}}]}); }); return 1; })`);
+    await sleep(700); /* toast slide-in */
+    const probe = `(function(){function hit(sel){var b=document.querySelector(sel);var r=b.getBoundingClientRect();var cx=r.left+r.width/2,cy=r.top+r.height/2;
+      return [[cx,cy],[cx-8,cy],[cx+8,cy],[cx,cy-8],[cx,cy+8]].map(function(p){var e=document.elementFromPoint(p[0],p[1]);return e&&e.closest(sel)?'ok':(e?(e.className||e.tagName):'none');});}
+      return {toasts:document.querySelectorAll('.toast').length,gear:hit('.app-header .icon-btn:not(.sync-dot)'),dot:hit('#sync-dot')};})()`;
+    const hdr = await ev(probe);
+    check(`${w}px: 3 toasts up, gear tappable (centre and 8px around)`, hdr.toasts === 3 && hdr.gear.every((x) => x === 'ok'), JSON.stringify(hdr));
+    check(`${w}px: 3 toasts up, sync dot tappable (centre and 8px around)`, hdr.toasts === 3 && hdr.dot.every((x) => x === 'ok'), JSON.stringify(hdr));
+    /* negative control: the old top offset should cover the gear, proving the probe can see it */
+    await ev(`var s=document.createElement('style');s.id='neg';s.textContent='.toast-host{top:10px !important;transition:none !important}';document.head.appendChild(s);true`);
+    await sleep(100);
+    const negHdr = await ev(probe);
+    console.log('  (negative control, old toast top: gear ' + (negHdr.gear[0] === 'ok' ? 'still reachable' : 'COVERED by ' + negHdr.gear[0] + ' - probe is sensitive') + ')');
+    await ev(`document.getElementById('neg').remove();document.getElementById('sync-dot').classList.add('hidden');true`);
+    await sleep(100);
+    await tap('.app-header .icon-btn:not(.sync-dot)');
+    check(`${w}px: real tap on the gear with 3 toasts opens Settings`, await until(`document.body.classList.contains('view-settings')`, 2000));
+  }
+
   /* ===== Step 1b at 360 and 390 ===== */
   for (const w of [360, 390]) {
     await load(w);

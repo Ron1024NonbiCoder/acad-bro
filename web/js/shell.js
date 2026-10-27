@@ -129,7 +129,20 @@ export function swapWithFade(change) {
   };
   pendingSwap = run;
   root.classList.add('swap-out');
-  afterTransition(root, 'opacity', tokenMs('--dur-fast', 160) + 80, run);
+  /* swap only once the fade-out has ended: the timer can fire before the
+     transition does when frames start late (busy main thread), so a timer
+     wake-up re-checks the opacity and keeps waiting; the hard cap covers a
+     background tab, where the transition may never finish */
+  var fast = tokenMs('--dur-fast', 160);
+  var start = Date.now();
+  var cap = fast * 3 + 200;
+  afterTransition(root, 'opacity', fast + 80, function check() {
+    if (pendingSwap !== run) return; /* already finished by a newer swap */
+    var op = 0;
+    try { op = parseFloat(getComputedStyle(root).opacity); } catch (e) { op = 0; }
+    if (op > 0 && Date.now() - start < cap) afterTransition(root, 'opacity', 40, check);
+    else run();
+  });
 }
 
 export function switchPage(id) {

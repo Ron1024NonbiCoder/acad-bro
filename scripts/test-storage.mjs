@@ -135,6 +135,71 @@ test('newer schema in storage is flagged and kept aside', function () {
   assert.equal(S.loadStatus.kind, 'recovered');
   assert.equal(S.loadStatus.newerSchema, true);
   assert.equal(mem.get(S.CORRUPT_KEY), raw);
+  assert.match(S.recoveredMessage(S.loadStatus), /newer AcadBro\. A copy was kept on this device/);
+});
+
+test('a second corruption rotates to -2 and never replaces the first copy', function () {
+  mem.set(S.STORAGE_KEY, '{bad one');
+  S.loadData();
+  assert.equal(S.loadStatus.corruptKey, 'acadbro-data-corrupt');
+  mem.set(S.STORAGE_KEY, '{bad two');
+  S.loadData();
+  assert.equal(S.loadStatus.corruptSaved, true);
+  assert.equal(S.loadStatus.corruptKey, 'acadbro-data-corrupt-2');
+  assert.equal(S.loadStatus.corruptReplacedOldest, false);
+  assert.equal(mem.get('acadbro-data-corrupt'), '{bad one');
+  assert.equal(mem.get('acadbro-data-corrupt-2'), '{bad two');
+  assert.deepEqual(S.CORRUPT_KEYS, ['acadbro-data-corrupt', 'acadbro-data-corrupt-2', 'acadbro-data-corrupt-3']);
+});
+
+test('reloading the same unreadable data reuses its slot (no duplicates)', function () {
+  mem.set(S.STORAGE_KEY, '{same');
+  S.loadData(); S.loadData(); S.loadData();
+  assert.equal(S.loadStatus.corruptKey, 'acadbro-data-corrupt');
+  assert.equal(mem.has('acadbro-data-corrupt-2'), false);
+});
+
+test('all 3 slots full: the oldest is overwritten and the message says so', function () {
+  mem.set('acadbro-data-corrupt', 'A');
+  mem.set('acadbro-data-corrupt-2', 'B');
+  mem.set('acadbro-data-corrupt-3', 'C');
+  mem.set(S.CORRUPT_META_KEY, JSON.stringify({
+    'acadbro-data-corrupt': '2026-10-03T00:00:00.000Z',
+    'acadbro-data-corrupt-2': '2026-10-01T00:00:00.000Z',
+    'acadbro-data-corrupt-3': '2026-10-02T00:00:00.000Z'
+  }));
+  mem.set(S.STORAGE_KEY, '{fourth');
+  S.loadData();
+  assert.equal(S.loadStatus.corruptKey, 'acadbro-data-corrupt-2');
+  assert.equal(S.loadStatus.corruptReplacedOldest, true);
+  assert.equal(mem.get('acadbro-data-corrupt'), 'A');
+  assert.equal(mem.get('acadbro-data-corrupt-2'), '{fourth');
+  assert.equal(mem.get('acadbro-data-corrupt-3'), 'C');
+  assert.match(S.recoveredMessage(S.loadStatus), /in place of the oldest of 3 earlier copies/);
+  /* a legacy slot with no recorded time counts as oldest */
+  mem.delete(S.CORRUPT_META_KEY);
+  mem.set(S.STORAGE_KEY, '{fifth');
+  S.loadData();
+  assert.equal(S.loadStatus.corruptKey, 'acadbro-data-corrupt');
+  assert.equal(mem.get('acadbro-data-corrupt-2'), '{fourth');
+});
+
+test('no room for a copy: status and message say plainly no copy was kept', function () {
+  mem.set(S.STORAGE_KEY, '{not json');
+  failWrites = true;
+  S.loadData();
+  assert.equal(S.loadStatus.kind, 'recovered');
+  assert.equal(S.loadStatus.corruptSaved, false);
+  assert.equal(S.loadStatus.corruptKey, null);
+  var msg = S.recoveredMessage(S.loadStatus);
+  assert.match(msg, /no room to keep a copy/);
+  assert.match(msg, /make no changes/);
+  assert.doesNotMatch(msg, /copy was kept/);
+  assert.equal(mem.get(S.STORAGE_KEY), '{not json', 'the original is left untouched');
+  S.loadStatus.newerSchema = true;
+  msg = S.recoveredMessage(S.loadStatus);
+  assert.doesNotMatch(msg, /copy was kept/);
+  assert.match(msg, /no room to keep a copy/);
 });
 
 test('failed write: returns false, calls onSaveError, does not mark dirty', function () {

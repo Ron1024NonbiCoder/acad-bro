@@ -11,7 +11,7 @@ import { onSwipeEntryPointerDown } from './swipe-entry.js';
 import { onPopState, onSheetPointerDown, onSheetPointerMove, onSheetPointerUp } from './layers.js';
 import { render } from './shell.js';
 import { ui, PAGE_IDS, clearActive } from './state.js';
-import { hooks, loadStatus, onStorageEvent } from './storage.js';
+import { hooks, loadStatus, onStorageEvent, recoveredMessage } from './storage.js';
 import { actions, initCloud, notifySync } from './cloud.js';
 import { initAccountUi, reportSignInUnavailable } from './page-account.js';
 import { exportData } from './page-settings.js';
@@ -108,9 +108,7 @@ function init() {
 
   if (loadStatus.kind === 'recovered') {
     showToast({
-      message: loadStatus.newerSchema
-        ? 'Saved data is from a newer AcadBro. A copy was kept; update the app to use it.'
-        : 'Saved data could not be read. A copy was kept' + (loadStatus.corruptSaved ? ' on this device' : ', but could not be stored') + '; you are starting fresh.',
+      message: recoveredMessage(loadStatus),
       tone: 'warn'
     });
   }

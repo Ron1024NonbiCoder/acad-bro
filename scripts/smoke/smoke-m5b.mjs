@@ -445,7 +445,7 @@ await setFlags({ failSave: 'unavailable' });
 await editTask('local-only edit B');
 await sleep(1500);
 await setFlags({});
-await ev('(function(){var all=JSON.parse(localStorage.getItem("__mockdocs"));var d=all["users/u1"];d.areaLabels={living:"CloudLiving",prod:"Prod",hobby:"Hobby"};d.rev="other-device-rev-3";d.updatedAt=Date.now()+9000;all["users/u1"]=d;localStorage.setItem("__mockdocs",JSON.stringify(all));})()');
+await ev('(function(){var all=JSON.parse(localStorage.getItem("__mockdocs"));var d=all["users/u1"];var t0=(d.tasks||[])[0]||{area:"living",projectId:null,note:"",priority:0,due:null,recur:null,subtasks:[],order:0,createdAt:"x",updatedAt:"x"};d.tasks=(d.tasks||[]).concat([Object.assign({},t0,{id:"t-cloud-only",title:"CloudOnlyTask"})]);d.rev="other-device-rev-3";d.updatedAt=Date.now()+9000;all["users/u1"]=d;localStorage.setItem("__mockdocs",JSON.stringify(all));})()');
 await load(BASEURL);
 check('conflict sheet again', await waitFor('!document.getElementById("sheet-host").hidden && document.getElementById("sheet-title").textContent === "Two versions found"', 4000));
 var localTasks = await dbTasks();
@@ -463,7 +463,8 @@ await click('[data-action="conflict-keep-local"]');
 check('asked again', await answerAsk('ask-replace'));
 check('keep-device: cloud gets the local data', await waitFor('(JSON.parse(localStorage.getItem("__mockdocs"))["users/u1"].tasks||[]).length === ' + localTasks, 5000));
 var bk2 = await ev('JSON.parse(localStorage.getItem("acadbro-conflict-backup"))');
-check('cloud version kept as recovery copy (kept=local, CloudLiving label)', bk2 && bk2.kept === 'local' && bk2.data.areaLabels.living === 'CloudLiving', bk2 && [bk2.kept, bk2.data.areaLabels]);
+/* marker = a cloud-only task (area labels are fixed since M6 step 2, so a label marker would be reset) */
+check('cloud version kept as recovery copy (kept=local, cloud-only task)', bk2 && bk2.kept === 'local' && (bk2.data.tasks || []).some(function (t) { return t.title === 'CloudOnlyTask'; }), bk2 && [bk2.kept, (bk2.data.tasks || []).map(function (t) { return t.title; })]);
 check('dirty cleared after upload', await waitFor('localStorage.getItem("acadbro-dirty") === null', 4000));
 
 /* ========== 7. launch with no changes: nothing re-applied; logout ========== */

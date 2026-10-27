@@ -807,10 +807,13 @@ h1, h2, h3, p { margin: 0; }
 /* ---------- toasts ----------
    Fixed to the top-right, sliding in from the right edge. The host is
    pointer-events:none so the strip never blocks taps on the app underneath;
-   each toast re-enables them for itself. */
+   each toast re-enables them for itself.
+   The stack starts below the header row (14px pad + 40px buttons + 8px pad =
+   62px, see .app-header) so the gear and sync dot stay tappable while toasts
+   are up. */
 .toast-host {
   position: fixed;
-  top: calc(10px + env(safe-area-inset-top, 0px));
+  top: calc(66px + env(safe-area-inset-top, 0px));
   right: calc(10px + env(safe-area-inset-right, 0px));
   z-index: 60;
   display: flex;
@@ -1051,6 +1054,7 @@ body.page-hobby .bottom-nav-item[data-page="hobby"] .bottom-nav-dot { opacity: 1
 .note-input { resize: vertical; min-height: 64px; border: 2px solid var(--border-strong); border-radius: var(--radius-sm); padding: 8px; line-height: 1.4; }
 .note-input:focus { border-color: var(--field-focus); }
 .editor-hint { margin-top: 4px; font-size: var(--fs-caption); color: var(--text-muted); }
+.editor-hint.is-off { visibility: hidden; } /* keeps its line: toggling it never shifts the panel */
 .text-btn.danger-text { color: var(--red); }
 .btn.danger { background: var(--red-soft); }
 

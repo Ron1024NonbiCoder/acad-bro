@@ -5,8 +5,8 @@
    localStorage shim. Failure is reported through `hooks` (main.js wires them to
    toasts) instead of imports, and callers re-render after a change themselves.
 
-   No silent data loss (CLAUDE.md): unreadable stored data is copied to
-   CORRUPT_KEY before anything can overwrite it, a failed write returns false
+   No silent data loss (CLAUDE.md): unreadable stored data is copied to one of
+   CORRUPT_KEYS before anything can overwrite it, a failed write returns false
    and calls hooks.onSaveError, and a doc near the 1 MB Firestore limit warns. */
 
 import { markDirty } from './sync-core.js';
@@ -15,6 +15,10 @@ import { todayISO } from './utils.js';
 
 export var STORAGE_KEY = 'acadbro-data-v1';
 export var CORRUPT_KEY = 'acadbro-data-corrupt';
+/* Unreadable copies rotate through 3 slots so a later corruption never replaces
+   an earlier copy unseen; CORRUPT_META_KEY = { slotKey: ISO time kept }. */
+export var CORRUPT_KEYS = [CORRUPT_KEY, CORRUPT_KEY + '-2', CORRUPT_KEY + '-3'];
+export var CORRUPT_META_KEY = 'acadbro-data-corrupt-meta';
 export var SCHEMA = 1;
 export var SIZE_WARN_BYTES = 800 * 1024; /* docs/DEV.md: warn at 800 KB (Firestore doc limit is 1 MB) */
 
@@ -70,12 +74,66 @@ export function countsOf(data) {
 
 /* ================= storage ================= */
 /* 'new' = nothing stored yet; 'ok' = loaded; 'recovered' = stored data was
-   unreadable, defaults are in use and the original is kept at CORRUPT_KEY
-   (corruptSaved says whether that copy could be written). main.js tells the user. */
-export var loadStatus = { kind: 'new', corruptSaved: false, newerSchema: false };
+   unreadable, defaults are in use and the original is kept in one of
+   CORRUPT_KEYS (corruptSaved = the copy exists, corruptKey = where,
+   corruptReplacedOldest = all slots were full and the oldest copy was
+   overwritten). main.js shows recoveredMessage(loadStatus). */
+export var loadStatus = { kind: 'new', corruptSaved: false, newerSchema: false, corruptKey: null, corruptReplacedOldest: false };
+
+function readCorruptMeta(store) {
+  try {
+    var o = JSON.parse(store.getItem(CORRUPT_META_KEY) || '{}');
+    return isObj(o) ? o : {};
+  } catch (err) { return {}; }
+}
+
+/* Keep `raw` aside without replacing an earlier copy: a slot that already holds
+   the same text is reused (a reload before the first edit sees the same
+   unreadable data again), else the first free slot, else the oldest (a slot
+   with no recorded time predates the rotation and counts as oldest).
+   Never throws; { saved, key, replacedOldest }. */
+export function keepCorruptCopy(store, raw) {
+  var none = { saved: false, key: null, replacedOldest: false };
+  if (!store) return none;
+  var meta = readCorruptMeta(store);
+  var free = null;
+  for (var i = 0; i < CORRUPT_KEYS.length; i++) {
+    var v = null;
+    try { v = store.getItem(CORRUPT_KEYS[i]); } catch (err) { v = null; }
+    if (v === raw) return { saved: true, key: CORRUPT_KEYS[i], replacedOldest: false };
+    if ((v === null || v === undefined) && !free) free = CORRUPT_KEYS[i];
+  }
+  var target = free;
+  if (!target) {
+    target = CORRUPT_KEYS.slice().sort(function (a, b) {
+      var ta = typeof meta[a] === 'string' ? meta[a] : '';
+      var tb = typeof meta[b] === 'string' ? meta[b] : '';
+      return ta < tb ? -1 : ta > tb ? 1 : CORRUPT_KEYS.indexOf(a) - CORRUPT_KEYS.indexOf(b);
+    })[0];
+  }
+  try { store.setItem(target, raw); } catch (err) { return none; }
+  meta[target] = new Date().toISOString();
+  try { store.setItem(CORRUPT_META_KEY, JSON.stringify(meta)); } catch (err) { /* the copy itself is kept */ }
+  return { saved: true, key: target, replacedOldest: !free };
+}
+
+/* The warning toast for a 'recovered' load; claims a copy only when one exists. */
+export function recoveredMessage(st) {
+  var kept = st.corruptReplacedOldest
+    ? 'A copy was kept on this device in place of the oldest of 3 earlier copies'
+    : 'A copy was kept on this device';
+  if (st.newerSchema) {
+    return st.corruptSaved
+      ? 'Saved data is from a newer AcadBro. ' + kept + '; update the app to use it.'
+      : 'Saved data is from a newer AcadBro and there was no room to keep a copy. To keep it, make no changes and update the app.';
+  }
+  return st.corruptSaved
+    ? 'Saved data could not be read. ' + kept + '; you are starting fresh.'
+    : 'Saved data could not be read and there was no room to keep a copy. To keep it, make no changes, free up browser storage and reload.';
+}
 
 export function loadData() {
-  loadStatus = { kind: 'new', corruptSaved: false, newerSchema: false };
+  loadStatus = { kind: 'new', corruptSaved: false, newerSchema: false, corruptKey: null, corruptReplacedOldest: false };
   var store = ls();
   var raw = null;
   try { raw = store ? store.getItem(STORAGE_KEY) : null; } catch (err) { raw = null; }
@@ -86,7 +144,10 @@ export function loadData() {
     if (data) { loadStatus.kind = 'ok'; return data; }
     loadStatus.kind = 'recovered';
     loadStatus.newerSchema = isObj(parsed) && typeof parsed.schema === 'number' && parsed.schema > SCHEMA;
-    try { store.setItem(CORRUPT_KEY, raw); loadStatus.corruptSaved = true; } catch (err) { /* quota */ }
+    var kept = keepCorruptCopy(store, raw);
+    loadStatus.corruptSaved = kept.saved;
+    loadStatus.corruptKey = kept.key;
+    loadStatus.corruptReplacedOldest = kept.replacedOldest;
   }
   /* nothing is written yet: a fresh install stays unsynced-dirty-free until the first edit */
   return defaultData();

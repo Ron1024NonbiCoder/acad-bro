@@ -210,7 +210,8 @@ function panelHtml(t, cx) {
       var days = '';
       for (var n = 1; n <= 31; n++) days += '<option value="' + n + '"' + (d.monthDay === n ? ' selected' : '') + '>' + n + '</option>';
       body += '<label class="field-row">Day of month <select data-draft="monthDay" aria-label="Day of month">' + days + '</select></label>'
-        + (d.monthDay > 28 ? '<div class="editor-hint">In shorter months it falls on the last day.</div>' : '');
+        /* always in the markup (space reserved); onDraftChange toggles .is-off on change */
+        + '<div class="editor-hint' + (d.monthDay > 28 ? '' : ' is-off') + '" data-month-hint>In shorter months it falls on the last day.</div>';
     }
     body += '<div class="editor-actions"><button type="button" class="btn primary" data-action="save-panel">Save</button>'
       + '<button type="button" class="btn" data-action="close-panel">Cancel</button></div>';

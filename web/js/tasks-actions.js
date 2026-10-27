@@ -324,15 +324,22 @@ export function setView(value) {
   render();
   if (!ok) warn('View changed for this session only. Allow site storage to keep it.');
 }
-export function toggleShowCompleted() {
-  var on = !settings.showCompleted;
+/* Same toast flow as commit()/replay() (Undo -> "Undone: ..." + Redo -> ...),
+   but for a device-local setting, which is not in DB and so has no diff. */
+function applyShowCompleted(on, step) {
   var ok = setSetting('showCompleted', on);
   render();
+  var message = on ? 'Showing completed tasks' : 'Hiding earlier completed tasks';
   showToast({
-    message: (on ? 'Showing completed tasks' : 'Hiding earlier completed tasks') + (ok ? '' : ' for this session only'),
+    message: (step === 'undo' ? 'Undone: ' : '') + message + (ok ? '' : ' for this session only'),
     tone: ok ? undefined : 'warn',
-    actions: [{ label: 'Undo', primary: true, onClick: function () { setSetting('showCompleted', !on); render(); } }]
+    actions: [step === 'undo'
+      ? { label: 'Redo', primary: true, onClick: function () { applyShowCompleted(!on, 'redo'); } }
+      : { label: 'Undo', primary: true, onClick: function () { applyShowCompleted(!on, 'undo'); } }]
   });
+}
+export function toggleShowCompleted() {
+  applyShowCompleted(!settings.showCompleted, 'do');
 }
 
 /* ================= editors ================= */
@@ -567,6 +574,11 @@ export function onDraftChange(el) {
     return;
   }
   readPanelDraft();
+  if (p.type === 'repeat' && key === 'monthDay') {
+    /* the hint's line is always reserved (page-tasks.js), so this never shifts the panel */
+    var hint = document.querySelector('.task-panel [data-month-hint]');
+    if (hint) hint.classList.toggle('is-off', !(p.draft.monthDay > 28));
+  }
 }
 
 /* data-action dispatcher for everything M2 adds. Returns true if handled. */

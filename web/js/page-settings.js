@@ -131,9 +131,22 @@ export async function onImportFile(file) {
   render();
 }
 
-function applyImport(data, prevJSON, redo) {
+function applyImport(data, prevJSON, redo, noBackupOk) {
   /* a recovery copy first: if the page dies mid-import the old data is still here */
-  try { localStorage.setItem(IMPORT_BACKUP_KEY, prevJSON); } catch (err) { /* quota: the Undo toast still holds it */ }
+  var backedUp = true;
+  try { localStorage.setItem(IMPORT_BACKUP_KEY, prevJSON); } catch (err) { backedUp = false; }
+  if (!backedUp && !noBackupOk) {
+    /* never import without telling: the user picks, nothing changes until then */
+    showToast({
+      message: 'No room to keep a backup of your current data; Undo in the next toast is the only way back. Import anyway?',
+      tone: 'warn',
+      actions: [
+        { label: 'Import', primary: true, onClick: function () { applyImport(data, snapshotJSON(), redo, true); } }, /* fresh snapshot: edits made meanwhile are what Undo restores */
+        { label: 'Cancel', onClick: function () { showToast({ message: 'Import cancelled. Your data is unchanged.' }); } }
+      ]
+    });
+    return;
+  }
   replaceData(data);
   if (!saveData()) {
     if (!saveInfo.reloaded) replaceData(JSON.parse(prevJSON)); /* newer data from another tab stays */
