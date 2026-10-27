@@ -35,6 +35,7 @@ Last updated: 2026-10-27 (M5 code complete, not deployed).
 | 2026-10-27 | **Review board (M4) lives in the shell, not on its own page.** It sits above the area tabs on every page and follows the current tab: All = rows grouped by area (area label + dot), Living/Prod/Hobby = that area's rows | Rows = non-archived projects in order, plus a **Loose** row (first) only when the area has loose tasks. Areas with no rows are left out. Claude default; confirm. |
 | 2026-10-27 | Board columns = 7 days **ending on the day selected in the strip** (not always today). A dot is filled in the area colour if >=1 task or subtask completion that day, else outlined. Tapping a dot = `select-day` (jumps the strip) | Same count rule as `activeDays`: distinct tasks per day. |
 | 2026-10-27 | Tapping a row name opens its **12-week heatmap in place** (one row open at a time; tap again closes). Week columns, rows start on the Settings week-start day, newest week at the right, days after the selected day are blank. Levels 0/1/2/3/4+ = 4 tints of the row's area colour. Tapping a cell shows 'Tue, Aug 18 · 4 tasks done' in a label under the grid (no modal, no jump) | Heatmap window also ends on the selected day. Open row + picked cell are session-only UI state. |
+| 2026-10-27 | Day strip expands into a **calendar month grid** (chevron + vertical swipe; month paging; filled accent circle on days with a completion; tap a day selects it then collapses after ~300 ms). Collapsed strip shows a small dot per done day | Mirrors GymBro; one done-marker meaning everywhere. Details in "M7 plan". |
 | 2026-10-27 | **Board can be folded** (title bar 'Activity'); the choice is remembered per device (`reviewShown` in settings.js, not synced). Default open | Claude addition: with many projects the board gets tall above the task list. Confirm or remove. |
 | 2026-10-27 | Review empty states: no rows -> 'Add a task to see activity here.'; rows but no activity in the 7 days -> 'Complete a task to see activity here.'; heatmap with nothing in 12 weeks -> same hint. Wording is neutral: no streak, goal or 'missed' language anywhere | |
 | 2026-10-27 | **M5 sync = GymBro model, login-only.** Email+password login (no sign-up UI, no password reset; accounts are made by hand in the console). Login turns sync on; logged out = pure local, as before | Claude built it; confirm the choices below. |
@@ -154,6 +155,7 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 - **M4: Review board + heatmaps.** (done 2026-10-27)
 - **M5: Auth + Firestore sync** (done in code 2026-10-27; needs the console steps and a rules deploy before it can work live).
 - **M6: Polish, limits, Android wrapper.**
+- **M7: Expandable day strip (month grid).** Planned 2026-10-27, see "M7 plan".
 
 ### M5 plan (from GymBro scan, 2026-10-26)
 
@@ -208,6 +210,37 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
   Accept: `https://acadbro-166c4.web.app/.well-known/assetlinks.json` returns 200 JSON; the app opens with no URL bar (PO, on the device). If the URL bar shows, the fingerprint in assetlinks does not match the key.
 - Data: a TWA runs in Chrome and shares Chrome's storage for this site, so local data is the same as the installed PWA on that phone; signed-in data is also in the cloud.
 
+### M7 plan: expandable day strip (month grid), written 2026-10-27 for handoff
+
+Goal: the day strip opens into a month calendar (as in GymBro's expanded strip), shows which days had completions, and lets you jump to any day. Nothing built yet; decisions below are from the Product Owner (2026-10-27) unless marked *default*.
+
+**Behaviour**
+1. **Open / close:** a small chevron button centred under the strip (`aria-expanded`), **and** a vertical swipe on the strip card (down opens, up closes). Escape also closes. The swipe must not fight the week scroller (horizontal) or page scroll: start only on the strip card, commit after ~24px vertical and |dy| > |dx|.
+2. **Grid = calendar month with paging.** Title row: month + year (e.g. "October 2026"), prev/next arrows, and a tertiary "Today" button shown only when another month than today's is on screen. Swipe left/right on the grid also pages a month. Opening shows the month of `ui.selectedDate`. Paging never changes `ui.selectedDate`.
+3. **Done marker in the grid:** a filled circle behind the day number in the page accent colour (orange Hobby, purple All), same scope rule as the strip dot (current page; all areas on All). The collapsed strip keeps its small dot. Same data source: `doneDates` (`tasks-core.js`).
+4. **Tap a day:** select it (highlight shows at once), then collapse after ~300 ms back to the strip on that day's week. Future days are selectable, like the strip. Haptic `tickLanded` on select, `tickNav` on open/close/page.
+5. **Today** keeps the small accent triangle under its number; **selected** day keeps the `--card-3` tile; the 1st of a month shows its month name above the number only for neighbour-month days (as "Nov 1" in the screenshot).
+6. Grid replaces the strip inside the same `.day-strip-card` (the card animates its height; content fades; no cut-jump). Honour reduced motion (same pattern as `foldReviewBoard`: pinned height, `afterTransition`).
+7. Leading/trailing days from adjacent months are shown **dimmed, tappable, with done circles** *(default)*. The grid always renders **6 rows** *(default)* so paging months never changes the card height (no layout jump).
+8. Week start follows `settings.weekStart` (Mon default).
+9. Open state is **not** remembered across launches *(default)*: the app always starts on the collapsed strip.
+
+**Files**
+- `tasks-core.js`: pure `monthGrid(anchorISO, weekStartDow)` -> `{ title, weeks: [[{ date, inMonth }]] }` (6 rows x 7), node-tested.
+- `state.js`: `ui.stripOpen` (bool), `ui.monthAnchor` (ISO of the 1st, or null = month of selectedDate). Both reset to closed/null on launch.
+- `day-strip.js`: `renderMonthGrid()`, `toggleStrip(render)` (animated), `shiftMonth(n)`, `monthToday()`; `renderDayStrip` renders chevron + either strip or grid. `doneDates` range extended to the visible grid.
+- `events.js`: actions `strip-toggle`, `month-prev`, `month-next`, `month-today`; vertical swipe handler on `.day-strip-card`; horizontal swipe on the grid; `select-day` from a grid cell sets `ui.selectedDate`, then collapses after ~300 ms (timer cancelled if the user taps again or toggles).
+- `styles.css`: `.strip-toggle`, `.month-grid`, `.month-head`, `.month-cell` (+ `.is-out`, `.has-done`, `.selected`, `.is-today`), reuse tokens/radius/`--dur`; no new colours.
+- `sw.js`: bump cache.
+
+**Tests / acceptance**
+- `test-tasks-core`: `monthGrid` for a 4-, 5- and 6-row month, Mon- and Sun-start, Feb leap year, year boundary (Dec -> Jan).
+- `smoke-m4` (or a new `smoke-strip.mjs`): open via chevron and via swipe; circles match `.has-done` on the strip for the same days; tap a day -> `ui.selectedDate` moves, grid collapses after ~300 ms; month paging does not change the selected day or the card height; no horizontal scroll at 360/390; no console errors.
+- `smoke-motion`: no layout shift outside input windows; reduced motion swaps without animation.
+- Fresh-context `verifier` pass; then a hand test on the phone (swipe conflicts are the main risk).
+
+**Still open for the Product Owner** (defaults above apply if no answer): dim vs hide neighbour-month days; fixed 6 rows vs variable rows; remember open state; show a count on the circle (not asked for, **not** built: tracking not pressure, see §1).
+
 ## 6. To-dos
 
 ### Claude
@@ -226,6 +259,7 @@ Facts come from a repo scan on 2026-10-27; re-check line numbers before editing.
 | done 2026-10-27 (code) | M6 step 6: TWA project `android/`; signed APK at `C:\Users\Sir\Downloads\AcadBro-APK\acadbro.apk` (apksigner verify OK, cert SHA-256 = assetlinks, aapt package `app.acadbro`); `web/.well-known/assetlinks.json` served 200 `application/json` by the local hosting emulator. Tests: storage, sync-core, tasks-core, utils pass. **Not deployed, not installed on any device** |
 | done 2026-10-27 | Toasts no longer cover the header gear / sync dot: the host starts below the header (`top: 66px`). smoke-m6 checks it at 360/390 with 3 toasts (+ negative control) |
 | done 2026-10-27 | Verifier fix pass (7 items, see §7 and §8). Tests: storage 26, sync-core 29, tasks-core 28, utils 10; smokes: icons 4/4, m6 33/33, motion 32/32 × 5 runs, m2 53/53, m4 37/37, m5b 140/140 at 390 and 360. Not deployed |
+| planned 2026-10-27 | M7 expandable day strip, see "M7 plan" (not started; waiting for go-ahead to hand to an executing agent) |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
 | pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
 | done 2026-10-27 | PNG icons (iOS ignores SVG apple-touch-icon): M6 step 3 |
