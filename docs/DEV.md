@@ -102,6 +102,16 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 - **M5: Auth + Firestore sync** (needs the Firebase project).
 - **M6: Polish, limits, Android wrapper.**
 
+### M5 plan (from GymBro scan, 2026-10-26)
+
+- Firebase JS SDK from CDN ESM `https://www.gstatic.com/firebasejs/12.16.0/{firebase-app,firebase-auth,firebase-firestore}.js`. Web config is public by design (security = rules).
+- New `web/js/auth.js` (modelled on GymBro `web/auth.js`): init, login, logout, `onAuthStateChanged`, `cloudSave` (`setDoc` on `users/{uid}`, `serverTimestamp()` as `updatedAt`), `loadCloudData` (`getDoc`), readback of `updatedAt` as BASE.
+- Fill AcadBro seams: `storage.js:23-26` `cloud.onLocalChange` stub; `applyCloudData` (`storage.js:137`) is the apply path; toasts via `hooks.onSaveError/onSizeWarn` (`main.js:17,23`).
+- Extend `web/js/sync-core.js` with `saveConflictBackup` / `readConflictBackup` / `syncInfo` (GymBro has them; add node tests).
+- Conflict flow = GymBro: not dirty → apply cloud; dirty and cloud == BASE → push local; else dialog "Keep this device" / "Keep cloud copy", discarded side kept as recovery backup; dirty cleared only by token-matched ack. Retry backoff 2/5/15/30/60s + retry on `online`.
+- New root files: `firebase.json` (auth emailPassword, firestore rules, hosting `public: web`), `.firebaserc` (default `acadbro-166c4`), `firestore.rules` (owner-only on `users/{uid}`, delete denied, all else denied, schema/size caps), `firestore.indexes.json`.
+- Rule ordering: deploy rules **before** shipping client fields that need them. No deploy without Product Owner OK.
+
 ## 6. To-dos
 
 ### Claude
@@ -110,7 +120,8 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | done 2026-10-26 | M1 shell & infrastructure (tests 10+13 pass; serve on PORT, default 5180) |
 | done 2026-10-26 | M2 projects/tasks/subtasks CRUD + views, and M3 recurrence (tests 13+21+10 pass; headless smoke at 390px passes, `scratchpad/smoke.mjs`) |
 | next | M4 review board (still a grey placeholder) + per-project heatmaps; reuse `activeDays()` from tasks-core.js |
-| pending | M5–M6 |
+| blocked on PO | M5 auth + sync (needs the console steps and sign-up decision in the Product Owner table) |
+| pending | M6 |
 | pending | Fresh-context verifier pass over M1–M4 before calling v1 usable |
 | pending | Hand-test gestures / settings / import on a real phone (M1 only machine-checked) |
 | pending | PNG icons (iOS ignores SVG apple-touch-icon) |
@@ -119,7 +130,10 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | Status | Item |
 |---|---|
 | open | Answer §3 open decisions |
-| open | Create a new Firebase project (Hosting + Firestore + Email/Password auth) and send the web config. Not needed until M5. |
+| done 2026-10-26 | Firebase project created: `acadbro-166c4` (hosting site `acadbro-166c4`). Claude registered web app `AcadBro Web` (appId `1:395278719258:web:52c74d6abe52f6acf174a3`). |
+| open | Console: enable **Email/Password** sign-in (Authentication → Sign-in method). |
+| open | Console: create the **Firestore database** (pick region; GymBro uses `nam5`; can't change later). |
+| done 2026-10-26 | Decided: **login-only** for now (like GymBro; accounts created by hand in the console). Sign-up can be added later. |
 
 ## 7. Serious bugs
 
@@ -130,6 +144,8 @@ A one-off task counts as done if it has a completion with `subtaskId === null`. 
 | fixed 2026-10-26 | Review board header "LAST 7 DAYS" overlapped the first day column. Label is now "7 days" and the column is 64px. |
 
 ## 8. Changelog
+
+- 2026-10-27: Firebase Hosting set up and deployed (hosting only): `firebase.json` + `.firebaserc` at repo root, `public: web`, `no-cache` on `/`, `index.html`, `sw.js`, `manifest.json`. Live at https://acadbro-166c4.web.app (title + headers verified). Redeploy: `cd <repo> && npx -y firebase-tools@latest deploy --only hosting`. Note `js/*` is cached 1h, so after a deploy a client may take up to an hour or a SW update to see new JS; bump the SW cache version on each release. Firestore/Auth config comes with M5.
 
 - 2026-10-26: Project started; decisions §2 recorded.
 - 2026-10-26: M2+M3 built: projects/tasks/subtasks CRUD, Grouped/Flat views, Show completed, swipe tray, Manage sheet, weekday/monthly recurrence, backfill via hold on done badge.
