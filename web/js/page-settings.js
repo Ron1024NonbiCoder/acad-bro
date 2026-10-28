@@ -1,4 +1,4 @@
-/* Settings view: week start, haptics, JSON export / import, account (page-account.js).
+/* Settings view: week start, haptics, JSON export / import, account (page-account.js), app update.
    Every change tells the user (toast); changes carry Undo, and undoing raises a
    Redo toast. Import is two-step (preview in the bottom sheet, then confirm),
    keeps a recovery copy of what it replaces, and is undoable. */
@@ -13,6 +13,7 @@ import { render } from './shell.js';
 import { showToast } from './toast.js';
 import { escapeHtml, formatBytes } from './utils.js';
 import { renderAccountRows } from './page-account.js';
+import { appUpdate, applyUpdate, checkForUpdate, onAppUpdateChange } from './app-update.js';
 
 export var IMPORT_BACKUP_KEY = 'acadbro-import-backup';
 
@@ -56,8 +57,41 @@ export function renderSettingsView() {
     + '</div>'
 
     + '<div class="settings-group-label">Account</div>'
-    + '<div class="settings-rows" id="account-rows">' + renderAccountRows() + '</div>';
+    + '<div class="settings-rows" id="account-rows">' + renderAccountRows() + '</div>'
+
+    + '<div class="settings-group-label">App</div>'
+    + '<div class="settings-rows" id="app-update-rows">' + renderAppUpdateRows() + '</div>';
 }
+
+/* ================= app update ================= */
+function renderAppUpdateRows() {
+  var s = appUpdate.status;
+  var chevron = '<span class="settings-row-chevron" aria-hidden="true">&#8635;</span>';
+  if (s === 'ready') {
+    return '<button type="button" class="settings-row" data-action="apply-update">'
+      + '<span class="settings-row-text"><span class="settings-row-label">Update ready</span>'
+      + '<span class="settings-row-hint">A new version is ready. Tap to reload.</span></span>'
+      + '<span class="sync-dot-fill is-pending" aria-hidden="true"></span>' + chevron + '</button>';
+  }
+  var busy = s === 'checking';
+  var hint = s === 'checking' ? 'Checking...'
+    : s === 'uptodate' ? 'You have the newest version.'
+    : s === 'error' ? 'Could not check. Connect to the internet, then tap to try again.'
+    : 'Tap to look for the newest version.';
+  return '<button type="button" class="settings-row' + (busy ? ' is-muted' : '') + '" data-action="check-update"' + (busy ? ' aria-disabled="true"' : '') + '>'
+    + '<span class="settings-row-text"><span class="settings-row-label">Check for updates</span>'
+    + '<span class="settings-row-hint' + (s === 'error' ? ' is-warn' : '') + '">' + hint + '</span></span>'
+    + (busy ? '<span class="sync-dot-fill is-loading" aria-hidden="true"></span>' : chevron) + '</button>';
+}
+
+/* Swap the rows in place when the status changes, only while Settings is open. */
+onAppUpdateChange(function () {
+  var el = document.getElementById('app-update-rows');
+  if (el) el.innerHTML = renderAppUpdateRows();
+});
+
+export function checkUpdateClicked() { checkForUpdate(); }
+export function applyUpdateClicked() { applyUpdate(); }
 
 /* the import preview, shown in the bottom sheet */
 export function importSheetHtml(sheet) {

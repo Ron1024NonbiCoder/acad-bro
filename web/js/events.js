@@ -18,7 +18,7 @@ import {
 import { commitEditor, handleTaskAction, onDraftChange, onLimitedInput } from './tasks-actions.js';
 import { todayISO } from './utils.js';
 import {
-  changeWeekStart, confirmImport, exportData, onImportFile, toggleHaptics
+  applyUpdateClicked, changeWeekStart, checkUpdateClicked, confirmImport, exportData, onImportFile, toggleHaptics
 } from './page-settings.js';
 
 /* The haptic map, applied once here by action name instead of inside every
@@ -118,6 +118,8 @@ export function onAppClick(e) {
     case 'set-week-start': changeWeekStart(ds.value); break;
     case 'toggle-haptics': toggleHaptics(); break;
     case 'export-data': exportData(); break;
+    case 'check-update': checkUpdateClicked(); break;
+    case 'apply-update': applyUpdateClicked(); break;
     case 'confirm-import': confirmImport(); break;
     case 'open-login': openLogin(); break;
     case 'submit-login': submitLogin(); break;

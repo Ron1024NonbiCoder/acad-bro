@@ -14,6 +14,7 @@ import { ui, PAGE_IDS, clearActive } from './state.js';
 import { hooks, loadStatus, onStorageEvent, recoveredMessage } from './storage.js';
 import { actions, initCloud, notifySync } from './cloud.js';
 import { initAccountUi, reportSignInUnavailable } from './page-account.js';
+import { initAppUpdate } from './app-update.js';
 import { exportData } from './page-settings.js';
 import {
   AUTH_HINT_KEY, CONFLICT_BACKUP_KEY, DIRTY_KEY, LAST_KEY, OWNER_KEY, REV_KEY
@@ -126,6 +127,7 @@ initCloud().then(function (ok) {
 /* Register the service worker: offline fallback, and what lets Chromium install
    this as a real home-screen app. Non-fatal on failure. */
 if ('serviceWorker' in navigator) {
+  initAppUpdate();
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./sw.js').catch(function () {});
   });
