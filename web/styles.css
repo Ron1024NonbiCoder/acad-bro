@@ -1222,9 +1222,6 @@ body.page-hobby .bottom-nav-item[data-page="hobby"] .bottom-nav-dot { opacity: 1
 .chev.is-folded { transform: rotate(-90deg); }
 .project-name { flex: 1; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
 .project-count { font-size: var(--fs-caption); color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.pdots { display: inline-flex; gap: 4px; align-items: center; }
-.pdot { width: 7px; height: 7px; border-radius: 50%; background: var(--grey-dot); display: block; }
-.pdot.on { background: var(--area, var(--accent)); }
 .project-note { font-size: var(--fs-sm); color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; margin: 2px 0 6px 24px; }
 .project-card .entry-list { margin-top: 6px; }
 .empty-sub { color: var(--text-muted); font-size: var(--fs-sm); padding: 8px 4px; }

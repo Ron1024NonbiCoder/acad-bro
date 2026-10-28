@@ -166,7 +166,7 @@ check('archived-project task hidden', (await ev('document.body.innerText.indexOf
 check('old done one-off hidden', (await ev('document.body.innerText.indexOf("Old finished chore")')) === -1);
 check('monthly 31 task hidden on non-matching day or shown on match', true);
 check('loose task listed before projects', (await ev('(function(){var l=document.querySelector(".loose-list");var p=document.querySelector(".project-card");return !!l && !!(l.compareDocumentPosition(p) & 4);})()')));
-check('project header shows 7 dots', (await ev('document.querySelectorAll(".project-card")[0].querySelectorAll(".pdot").length')) === 7);
+check('project header has no activity dots', (await ev('document.querySelectorAll(".project-card .pdot").length')) === 0);
 check('overdue chip red-classed', (await ev('document.querySelectorAll(".chip.due.overdue").length')) >= 1);
 await shot('01-prod-grouped');
 

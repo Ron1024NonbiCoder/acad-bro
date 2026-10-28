@@ -13,7 +13,7 @@ import { viewFor, weekStartDow } from './settings.js';
 import { escapeHtml, parseISO, MONTH_SHORT, WEEKDAY_SHORT, todayISO } from './utils.js';
 import { trayWidth } from './swipe-entry.js';
 import {
-  LIMITS, PRIORITY_MARKS, PRIORITY_NAMES, activeDays, describeRecur, doneCompletion, indexCompletions,
+  LIMITS, PRIORITY_MARKS, PRIORITY_NAMES, describeRecur, doneCompletion, indexCompletions,
   isDone, isOverdue, isRelevant, isSubtaskDone, sortByOrder, sortFlat, subtaskProgress
 } from './tasks-core.js';
 
@@ -293,14 +293,6 @@ function taskCardHtml(t, cx, showProject) {
 }
 
 /* ================= views ================= */
-function projectDots(p, cx) {
-  var days = activeDays(p.id, DB.tasks, DB.completions, cx.iso, 7);
-  return '<span class="pdots" role="img" aria-label="Activity, last 7 days">' + days.map(function (d) {
-    var label = prettyDate(d.date) + ': ' + (d.count ? d.count + (d.count === 1 ? ' task' : ' tasks') + ' done' : 'no activity');
-    return '<i class="pdot' + (d.active ? ' on' : '') + '" title="' + escapeHtml(label) + '"></i>';
-  }).join('') + '</span>';
-}
-
 function projectCardHtml(p, tasks, cx) {
   var folded = !!ui.collapsed[p.id];
   var renaming = ui.editing && ui.editing.type === 'project-rename' && ui.editing.id === p.id;
@@ -311,7 +303,6 @@ function projectCardHtml(p, tasks, cx) {
     + '<span class="chev' + (folded ? ' is-folded' : '') + '" aria-hidden="true">&#9662;</span>'
     + (renaming ? nameInput('project-rename', p.name, 'Project name', ' data-select-all="1"') : '<span class="project-name">' + escapeHtml(p.name) + '</span>')
     + '<span class="project-count">' + doneN + '/' + tasks.length + '</span>'
-    + projectDots(p, cx)
     + '</header>';
   var body = '';
   if (!folded) {
