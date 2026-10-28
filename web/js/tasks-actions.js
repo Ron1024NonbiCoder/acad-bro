@@ -12,7 +12,7 @@
 
 import { ui, clearActive, AREA_IDS } from './state.js';
 import { DB, saveData } from './storage.js';
-import { settings, setSetting, setViewFor } from './settings.js';
+import { setViewFor } from './settings.js';
 import { render } from './shell.js';
 import { showToast } from './toast.js';
 import { closeTray } from './swipe-entry.js';
@@ -324,24 +324,6 @@ export function setView(value) {
   render();
   if (!ok) warn('View changed for this session only. Allow site storage to keep it.');
 }
-/* Same toast flow as commit()/replay() (Undo -> "Undone: ..." + Redo -> ...),
-   but for a device-local setting, which is not in DB and so has no diff. */
-function applyShowCompleted(on, step) {
-  var ok = setSetting('showCompleted', on);
-  render();
-  var message = on ? 'Showing completed tasks' : 'Hiding earlier completed tasks';
-  showToast({
-    message: (step === 'undo' ? 'Undone: ' : '') + message + (ok ? '' : ' for this session only'),
-    tone: ok ? undefined : 'warn',
-    actions: [step === 'undo'
-      ? { label: 'Redo', primary: true, onClick: function () { applyShowCompleted(!on, 'redo'); } }
-      : { label: 'Undo', primary: true, onClick: function () { applyShowCompleted(!on, 'undo'); } }]
-  });
-}
-export function toggleShowCompleted() {
-  applyShowCompleted(!settings.showCompleted, 'do');
-}
-
 /* ================= editors ================= */
 function openEditing(ed) {
   clearActive();
@@ -587,7 +569,6 @@ export function handleTaskAction(action, ds) {
     case 'expand-task': toggleExpand(ds.taskId); return true;
     case 'fold-project': foldProject(ds.projectId); return true;
     case 'set-view': setView(ds.value); return true;
-    case 'toggle-completed': toggleShowCompleted(); return true;
     case 'start-add-task': startAddTask(); return true;
     case 'add-pick-area':
       captureText();

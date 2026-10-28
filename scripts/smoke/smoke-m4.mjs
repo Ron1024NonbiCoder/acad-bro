@@ -165,14 +165,14 @@ check('no streak wording', (await ev('/streak/i.test(document.body.innerText)'))
 check('no horizontal scroll 390', await noHScroll());
 await shot('m4-01-prod-board');
 
-/* day strip: a dot under each day with a completion on this page (same data as the board dots) */
+/* day strip: a filled circle behind the number of each day with a completion on this page (same data as the board dots) */
 var stripHasDone = async function (off) { return ev('(function(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+(' + off + '));var s=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");var c=document.querySelector(".strip-cell[data-date=\\""+s+"\\"]");return c?c.classList.contains("has-done"):null})()'); };
-check('strip (prod): day -2 has a done dot', (await stripHasDone(-2)) === true);
-check('strip (prod): day -1 has a done dot (subtask completion counts)', (await stripHasDone(-1)) === true);
+check('strip (prod): day -2 has a done circle', (await stripHasDone(-2)) === true);
+check('strip (prod): day -1 has a done circle (subtask completion counts)', (await stripHasDone(-1)) === true);
 check('strip (prod): day -5 has none', (await stripHasDone(-5)) === false);
-check('strip dot slot is always present (no layout shift)', (await ev('document.querySelectorAll(".strip-cell").length')) === (await ev('document.querySelectorAll(".strip-cell .strip-done-dot").length')));
+check('strip: circle behind the number on exactly the .has-done days; no dot element left (M7)', (await ev('document.querySelectorAll(".strip-cell.has-done").length')) === (await ev('document.querySelectorAll(".strip-cell.has-done .day-num-wrap > .done-circle").length')) && (await ev('document.querySelectorAll(".strip-cell .strip-done-dot").length')) === 0);
 await load('http://localhost:' + PORT + '/?page=hobby');
-check('strip (hobby): only the hobby completion day (-4) is dotted', (await stripHasDone(-4)) === true && (await stripHasDone(-2)) === false && (await stripHasDone(0)) === false);
+check('strip (hobby): only the hobby completion day (-4) has a circle', (await stripHasDone(-4)) === true && (await stripHasDone(-2)) === false && (await stripHasDone(0)) === false);
 await load('http://localhost:' + PORT + '/?page=all');
 check('strip (all): every area counts (day 0 living, day -4 hobby)', (await stripHasDone(0)) === true && (await stripHasDone(-4)) === true);
 await load('http://localhost:' + PORT + '/?page=prod');

@@ -345,8 +345,7 @@ await shot('11b-all-added');
 
 /* Show completed */
 await click('.bottom-nav-item[data-page=prod]');
-await click('[data-action="toggle-completed"]');
-check('Show completed reveals old done one-off', (await ev('document.body.innerText.indexOf("Old finished chore")')) !== -1);
+check('Old done one-off is always shown', (await ev('document.body.innerText.indexOf("Old finished chore")')) !== -1);
 await shot('12-show-completed');
 
 /* reload persistence + no errors */

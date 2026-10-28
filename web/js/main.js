@@ -4,7 +4,7 @@
 
 import {
   onAppClick, onAppChange, onAppInput, onAppPointerCancelCapture, onAppPointerDownCapture, onAppPointerUpCapture,
-  onFocusOut, onKeyDown, onAppScroll
+  onFocusOut, onKeyDown, onAppScroll, onStripPointerCancel, onStripPointerDown, onStripPointerMove, onStripPointerUp
 } from './events.js';
 import { onLongPressPointerDown } from './long-press.js';
 import { onSwipeEntryPointerDown } from './swipe-entry.js';
@@ -90,6 +90,11 @@ function init() {
   document.addEventListener('click', onAppClick);
   document.addEventListener('pointerdown', onLongPressPointerDown);
   document.addEventListener('pointerdown', onSwipeEntryPointerDown);
+  /* day strip card: vertical swipe opens/closes the month grid, horizontal pages it (events.js) */
+  document.addEventListener('pointerdown', onStripPointerDown);
+  document.addEventListener('pointermove', onStripPointerMove);
+  document.addEventListener('pointerup', onStripPointerUp);
+  document.addEventListener('pointercancel', onStripPointerCancel);
   /* bottom sheet: drag the grip down to dismiss; Back closes the top layer */
   document.addEventListener('pointerdown', onSheetPointerDown);
   document.addEventListener('pointermove', onSheetPointerMove);

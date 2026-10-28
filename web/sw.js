@@ -16,7 +16,7 @@
    (SDK_CACHE), which an app cache bump never deletes; only an SDK cache of
    another version is cleaned up. */
 
-const CACHE = 'acadbro-v10';
+const CACHE = 'acadbro-v11';
 const SDK_VERSION = '12.16.0'; /* must match SDK_BASE in js/cloud.js */
 const SDK_PREFIX = 'https://www.gstatic.com/firebasejs/' + SDK_VERSION + '/';
 const SDK_CACHE = 'acadbro-sdk-' + SDK_VERSION;

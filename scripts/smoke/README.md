@@ -22,6 +22,7 @@ request reaches that interception). The live Firebase backend is never contacted
 |---|---|---|
 | `check-icons.mjs` | PNG icon sizes (IHDR) in `web/icon/` | `node scripts/smoke/check-icons.mjs` |
 | `smoke-m6.mjs` | M6 steps 1-2: tap-while-editing, toasts vs header gear/sync dot and vs sheet close at 360/390, import limits + 2 MB cap (33 checks) | `node scripts/smoke/smoke-m6.mjs` |
+| `smoke-strip.mjs` | M7: month grid open via chevron and swipe, area-coloured done circles (solid / cross-fade / reduced motion), paging, day pick + fold, no dot left, 390 + 360 (89 checks) | `node scripts/smoke/smoke-strip.mjs` |
 | `smoke-motion.mjs` | M6 step 4: no layout shift outside input windows, reduced motion (32 checks) | `node scripts/smoke/smoke-motion.mjs` |
 
 Optional args for m6/motion: `[webRoot] [label]` (webRoot defaults to `<repo>/web`).

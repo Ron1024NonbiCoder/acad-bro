@@ -9,7 +9,7 @@
 
 import { ui, AREA_IDS } from './state.js';
 import { DB } from './storage.js';
-import { settings, viewFor, weekStartDow } from './settings.js';
+import { viewFor, weekStartDow } from './settings.js';
 import { escapeHtml, parseISO, MONTH_SHORT, WEEKDAY_SHORT, todayISO } from './utils.js';
 import { trayWidth } from './swipe-entry.js';
 import {
@@ -61,7 +61,6 @@ function makeCtx() {
   return {
     iso: ui.selectedDate,
     comps: indexCompletions(DB.completions),
-    showCompleted: settings.showCompleted,
     projects: projects
   };
 }
@@ -72,7 +71,7 @@ function visibleInArea(area, cx) {
     if (t.area !== area) return false;
     var p = projectOf(t, cx);
     if (p && p.archived) return false;
-    return isRelevant(t, cx.iso, cx.comps, cx.showCompleted);
+    return isRelevant(t, cx.iso);
   });
 }
 /* not-done first, then creation order */
@@ -109,7 +108,6 @@ function toolbarHtml() {
   }).join('');
   return '<div class="list-toolbar">'
     + '<div class="segmented" role="group" aria-label="List view">' + seg + '</div>'
-    + '<button type="button" class="chip-btn' + (settings.showCompleted ? ' is-on' : '') + '" data-action="toggle-completed" aria-pressed="' + settings.showCompleted + '">Show completed</button>'
     + '<button type="button" class="text-btn" data-action="open-manage">Manage</button>'
     + '</div>';
 }

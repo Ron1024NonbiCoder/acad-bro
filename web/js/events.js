@@ -6,7 +6,7 @@ import { ui } from './state.js';
 import {
   closeSettings, closeSheet, closeTopLayer, openSettings, render, selectDay, switchPage
 } from './shell.js';
-import { settleStripScroll } from './day-strip.js';
+import { cancelStripClose, monthToday, scheduleStripClose, settleStripScroll, shiftMonth, stripToggling, toggleStrip } from './day-strip.js';
 import { closeTray, consumeSwipeEntryClick, runTrayAction } from './swipe-entry.js';
 import { consumeLongPressClick } from './long-press.js';
 import { tickLanded, tickNav, tickOff } from './haptics.js';
@@ -25,7 +25,7 @@ import {
    handler: navigate = tickNav, commit (save / confirm / add) = tickLanded,
    destructive = tickOff. switch-page buzzes inside switchPage(). */
 function actionHaptic(action) {
-  if (/^(select-day|nav-today|open-settings|close-settings|review-fold|review-row)$/.test(action)) tickNav();
+  if (/^(select-day|nav-today|open-settings|close-settings|review-fold|review-row|strip-toggle|month-prev|month-next|month-today)$/.test(action)) tickNav();
   else if (/^(remove-|delete-|confirm-delete-|confirm-remove-|log-out$|discard-|confirm-discard-|ask-replace$)/.test(action)) tickOff();
   else if (/^(save-|confirm-|add-|create-|set-|toggle-|submit-|conflict-keep-)/.test(action)) tickLanded();
 }
@@ -103,11 +103,18 @@ export function onAppClick(e) {
   if (e.target.closest('input, textarea, select')) return;
   /* the trailing click of a fired long-press must not also do the tap thing */
   if (consumeLongPressClick()) return;
+  if (consumeStripSwipeClick()) return; /* the trailing click of a strip swipe is not a tap on a day */
   var action = ds.action;
-  actionHaptic(action);
+  /* a day picked in the month grid is a commit (tickLanded); the grid then folds away */
+  var gridPick = action === 'select-day' && !!target.closest('.month-grid');
+  if (gridPick) tickLanded(); else actionHaptic(action);
   switch (action) {
     case 'switch-page': switchPage(ds.page); break;
-    case 'select-day': selectDay(ds.date); break;
+    case 'select-day': selectDay(ds.date); if (gridPick) scheduleStripClose(render); break;
+    case 'strip-toggle': toggleStrip(render); break;
+    case 'month-prev': shiftMonth(-1); render(); break;
+    case 'month-next': shiftMonth(1); render(); break;
+    case 'month-today': monthToday(); render(); break;
     case 'nav-today': selectDay(todayISO()); break;
     case 'review-fold': foldReviewBoard(render); break;
     case 'review-row': toggleReviewRow(ds.key); render(); break;
@@ -171,6 +178,7 @@ export function onKeyDown(e) {
   }
   if (e.key === 'Escape') {
     if (closeTopLayer()) e.preventDefault();
+    else if (ui.stripOpen) { toggleStrip(render, false); tickNav(); e.preventDefault(); }
     return;
   }
   /* role="button" divs (the day cells) activate like buttons */
@@ -219,3 +227,52 @@ export function onAppScroll(e) {
     if (settleStripScroll(el)) render();
   }, 120);
 }
+
+/* ---- strip swipes (M7) ----
+   Vertical on the strip card: down opens the month grid, up closes it. Horizontal
+   on the open grid: left = next month, right = previous. Committed after ~24px,
+   once one axis clearly wins; a horizontal move on the closed strip is left to its
+   own scroller (week paging). styles.css gives the card touch-action pan-x (closed)
+   / none (open) so the browser does not take vertical moves for page scroll. The
+   click that follows a swipe is eaten (consumeStripSwipeClick). */
+var SWIPE_COMMIT_PX = 24;
+var swipe = null; /* { id, x, y, mode: null | 'v' | 'h' } */
+var swipeClickUntil = 0;
+
+export function consumeStripSwipeClick() {
+  if (Date.now() < swipeClickUntil) { swipeClickUntil = 0; return true; }
+  return false;
+}
+export function onStripPointerDown(e) {
+  swipe = null;
+  swipeClickUntil = 0; /* a new press: the last swipe's trailing click (if any) is already over */
+  if (e.button !== undefined && e.button !== 0) return;
+  if (!e.target.closest || !e.target.closest('.day-strip-card') || e.target.closest('.strip-toggle')) return;
+  swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, mode: null };
+}
+export function onStripPointerMove(e) {
+  if (!swipe || e.pointerId !== swipe.id || swipe.mode) return;
+  var dx = e.clientX - swipe.x;
+  var dy = e.clientY - swipe.y;
+  if (Math.abs(dy) >= SWIPE_COMMIT_PX && Math.abs(dy) > Math.abs(dx)) swipe.mode = 'v';
+  else if (ui.stripOpen && Math.abs(dx) >= SWIPE_COMMIT_PX && Math.abs(dx) > Math.abs(dy)) swipe.mode = 'h';
+}
+export function onStripPointerUp(e) {
+  var s = swipe;
+  swipe = null;
+  if (!s || e.pointerId !== s.id || !s.mode) return;
+  var dx = e.clientX - s.x;
+  var dy = e.clientY - s.y;
+  swipeClickUntil = Date.now() + 400;
+  if (s.mode === 'v') {
+    if (stripToggling()) return;
+    if (dy > 0 && !ui.stripOpen) { tickNav(); toggleStrip(render, true); }
+    else if (dy < 0 && ui.stripOpen) { tickNav(); toggleStrip(render, false); }
+  } else if (s.mode === 'h' && ui.stripOpen && !stripToggling()) {
+    cancelStripClose();
+    tickNav();
+    shiftMonth(dx < 0 ? 1 : -1);
+    render();
+  }
+}
+export function onStripPointerCancel() { swipe = null; }

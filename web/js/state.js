@@ -37,7 +37,11 @@ export var ui = {
 
   /* ---- M4: review board (review-board.js) ---- */
   reviewRow: null,  /* row key ('p:<id>' | 'loose:<area>') whose heatmap is open; one at a time */
-  reviewCell: null  /* ISO date of the heatmap cell last tapped (its label shows under the grid) */
+  reviewCell: null, /* ISO date of the heatmap cell last tapped (its label shows under the grid) */
+
+  /* ---- M7: expandable day strip (day-strip.js); never remembered across launches ---- */
+  stripOpen: false,  /* true = the month grid replaces the week strip */
+  monthAnchor: null  /* ISO of the 1st of the month on screen; null = the month of selectedDate */
 };
 
 /* One active thing at a time. Every "this row is open or being edited" flag

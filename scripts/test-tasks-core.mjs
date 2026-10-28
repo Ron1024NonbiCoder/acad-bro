@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import {
   LIMITS, activeDays, activityIndex, activityKey, applyDiff, canAdd, describeRecur, diffCollections, doneCompletion,
-  doneDates, heatmapGrid, indexCompletions, intensityLevel, isDone, isDue, isEmptyDiff, isOverdue, isRelevant, isSubtaskDone,
+  doneDates, monthGrid, shiftMonthISO, heatmapGrid, indexCompletions, intensityLevel, isDone, isDue, isEmptyDiff, isOverdue, isRelevant, isSubtaskDone,
   matchesRecur, normalizeRecur, reviewGroups, snapshotCollections, sortFlat, subtaskProgress,
   validateName, validateNote, windowDays
 } from '../web/js/tasks-core.js';
@@ -82,22 +82,21 @@ test('a recurring task is done only for the date it was completed; a missed day 
 });
 
 /* ---------- one-off visibility ---------- */
-test('one-off visibility: open tasks always show, done ones only on their day', function () {
+test('one-off visibility: open and done tasks always show', function () {
   var open = task({ id: 'a' });
   var done = task({ id: 'b' });
   var comps = [comp({ taskId: 'b', date: '2026-10-24' })];
-  assert.equal(isRelevant(open, '2026-10-26', comps, false), true);
-  assert.equal(isRelevant(done, '2026-10-24', comps, false), true);  /* done on that day */
-  assert.equal(isRelevant(done, '2026-10-26', comps, false), false); /* completed earlier: hidden */
-  assert.equal(isRelevant(done, '2026-10-26', comps, true), true);   /* Show completed */
+  assert.equal(isRelevant(open, '2026-10-26'), true);
+  assert.equal(isRelevant(done, '2026-10-24'), true);  /* done on that day */
+  assert.equal(isRelevant(done, '2026-10-26'), true);  /* completed earlier: still shown */
   assert.equal(isDone(done, '2026-10-26', comps), true);
   assert.equal(isDone(open, '2026-10-26', comps), false);
 });
 
-test('recurring tasks show only on matching days, regardless of Show completed', function () {
+test('recurring tasks show only on matching days, on matching days', function () {
   var t = task({ recur: { kind: 'monthly', day: 31 } });
-  assert.equal(isRelevant(t, '2026-02-28', [], false), true);
-  assert.equal(isRelevant(t, '2026-02-27', [], true), false);
+  assert.equal(isRelevant(t, '2026-02-28'), true);
+  assert.equal(isRelevant(t, '2026-02-27'), false);
 });
 
 test('overdue: one-off, not done, due before the viewed day', function () {
@@ -295,7 +294,7 @@ test('activityIndex: one pass agrees with activeDays for projects and loose rows
   assert.equal(activityKey(task({ projectId: null, area: 'living' })), 'loose:living');
 });
 
-test('doneDates: days with a task or subtask completion in the given areas, in range only', function () {
+test('doneDates: date -> area ids for completions (task or subtask) in the given areas, in range only', function () {
   var tasks = [
     task({ id: 't1', area: 'hobby' }), task({ id: 't2', area: 'hobby', subtasks: [{ id: 's1', title: 'a' }] }),
     task({ id: 't3', area: 'prod' })
@@ -304,8 +303,84 @@ test('doneDates: days with a task or subtask completion in the given areas, in r
     comp({ taskId: 't1', date: '2026-10-26' }), comp({ taskId: 't2', subtaskId: 's1', date: '2026-10-25' }),
     comp({ taskId: 't3', date: '2026-10-24' }), comp({ taskId: 't1', date: '2026-09-01' }), comp({ taskId: 'gone', date: '2026-10-23' })
   ];
-  assert.deepEqual([...doneDates(tasks, comps, ['hobby'], '2026-10-19', '2026-11-08')].sort(), ['2026-10-25', '2026-10-26']);
-  assert.deepEqual([...doneDates(tasks, comps, ['hobby', 'prod'], '2026-10-19', '2026-11-08')].sort(), ['2026-10-24', '2026-10-25', '2026-10-26']);
+  var hobby = doneDates(tasks, comps, ['hobby'], '2026-10-19', '2026-11-08');
+  assert.deepEqual([...hobby.keys()].sort(), ['2026-10-25', '2026-10-26']); /* single colour, solid */
+  assert.deepEqual(hobby.get('2026-10-26'), ['hobby']);
+  assert.equal(hobby.has('2026-10-24'), false); /* none: absent */
+  var both = doneDates(tasks, comps, ['hobby', 'prod'], '2026-10-19', '2026-11-08');
+  assert.deepEqual([...both.keys()].sort(), ['2026-10-24', '2026-10-25', '2026-10-26']);
+  assert.deepEqual(both.get('2026-10-24'), ['prod']);
+});
+
+test('doneDates: several areas on one day are distinct and follow the areas argument order, not completion order', function () {
+  var tasks = [task({ id: 'a', area: 'living' }), task({ id: 'b', area: 'prod' }), task({ id: 'c', area: 'hobby' }), task({ id: 'd', area: 'hobby' })];
+  var comps = [
+    comp({ taskId: 'c', date: '2026-10-26' }), comp({ taskId: 'd', date: '2026-10-26' }),
+    comp({ taskId: 'a', date: '2026-10-26' }), comp({ taskId: 'b', date: '2026-10-26' }), comp({ taskId: 'b', date: '2026-10-27' })
+  ];
+  var all = doneDates(tasks, comps, ['living', 'prod', 'hobby'], '2026-10-01', '2026-10-31');
+  assert.deepEqual(all.get('2026-10-26'), ['living', 'prod', 'hobby']);
+  assert.deepEqual(all.get('2026-10-27'), ['prod']);
+  /* page scope: only that area's colour */
+  assert.deepEqual(doneDates(tasks, comps, ['hobby'], '2026-10-01', '2026-10-31').get('2026-10-26'), ['hobby']);
+  assert.equal(doneDates([], [], ['hobby'], '2026-10-01', '2026-10-31').size, 0);
+});
+
+function rowsWithMonthDays(g) { return g.weeks.filter(function (w) { return w.some(function (d) { return d.inMonth; }); }).length; }
+test('monthGrid: always 6 rows x 7; 4-, 5- and 6-row months fill the rest with neighbour days', function () {
+  var feb27 = monthGrid('2027-02-14', 1); /* Feb 2027 starts on a Monday: exactly 4 rows */
+  var oct26 = monthGrid('2026-10-26', 1); /* starts Thursday: 5 rows */
+  var aug26 = monthGrid('2026-08-03', 1); /* starts Saturday: 6 rows */
+  [feb27, oct26, aug26].forEach(function (g) {
+    assert.equal(g.weeks.length, 6);
+    g.weeks.forEach(function (w) { assert.equal(w.length, 7); });
+  });
+  assert.equal(rowsWithMonthDays(feb27), 4);
+  assert.equal(rowsWithMonthDays(oct26), 5);
+  assert.equal(rowsWithMonthDays(aug26), 6);
+  assert.equal(feb27.weeks[0][0].date, '2027-02-01');
+  assert.equal(feb27.weeks[4][0].date, '2027-03-01');
+  assert.equal(feb27.weeks[4][0].inMonth, false);
+  assert.equal(oct26.title, 'October 2026');
+  assert.equal(oct26.first, '2026-10-01');
+});
+
+test('monthGrid: week start Monday vs Sunday vs Saturday shifts the first column', function () {
+  var mon = monthGrid('2026-10-15', 1);
+  var sun = monthGrid('2026-10-15', 0);
+  var sat = monthGrid('2026-10-15', 6);
+  assert.equal(mon.weeks[0][0].date, '2026-09-28'); /* Monday */
+  assert.equal(mon.weeks[0][3].date, '2026-10-01'); /* Oct 1 is a Thursday */
+  assert.equal(mon.weeks[0][0].inMonth, false);
+  assert.equal(mon.weeks[0][3].inMonth, true);
+  assert.equal(sun.weeks[0][0].date, '2026-09-27'); /* Sunday */
+  assert.equal(sun.weeks[0][4].date, '2026-10-01');
+  assert.equal(sat.weeks[0][0].date, '2026-09-26');
+  assert.equal(sat.weeks[0][5].date, '2026-10-01');
+  /* consecutive days, no gaps or repeats */
+  var flat = [].concat.apply([], mon.weeks).map(function (d) { return d.date; });
+  assert.equal(new Set(flat).size, 42);
+});
+
+test('monthGrid: leap February 2028 has the 29th, 2027 does not', function () {
+  var leap = [].concat.apply([], monthGrid('2028-02-10', 1).weeks).filter(function (d) { return d.inMonth; }).map(function (d) { return d.date; });
+  assert.equal(leap.length, 29);
+  assert.equal(leap[28], '2028-02-29');
+  var plain = [].concat.apply([], monthGrid('2027-02-10', 1).weeks).filter(function (d) { return d.inMonth; });
+  assert.equal(plain.length, 28);
+});
+
+test('monthGrid: December runs into January of the next year; shiftMonthISO crosses year ends', function () {
+  var dec = monthGrid('2026-12-31', 1);
+  assert.equal(dec.title, 'December 2026');
+  var flat = [].concat.apply([], dec.weeks);
+  var last = flat[flat.length - 1];
+  assert.equal(last.inMonth, false);
+  assert.ok(last.date.indexOf('2027-01') === 0);
+  assert.equal(shiftMonthISO('2026-12-15', 1), '2027-01-01');
+  assert.equal(shiftMonthISO('2027-01-31', -1), '2026-12-01');
+  assert.equal(shiftMonthISO('2026-10-31', 1), '2026-11-01'); /* no day-31 overflow */
+  assert.equal(monthGrid('2027-01-01', 1).title, 'January 2027');
 });
 
 test('windowDays: no data gives seven inactive days ending on the given day', function () {

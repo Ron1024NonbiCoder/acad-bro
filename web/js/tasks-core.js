@@ -132,13 +132,10 @@ export function isOverdue(task, iso, comps) {
 }
 /* Should the task appear in the list for day `iso`?
    - recurring: only on days its rule matches (done or not)
-   - one-off: not done, or done on `iso`; one completed earlier is hidden unless
-     showCompleted is on */
-export function isRelevant(task, iso, comps, showCompleted) {
+   - one-off: always (completed ones stay visible) */
+export function isRelevant(task, iso) {
   if (task.recur) return matchesRecur(task.recur, iso);
-  var c = doneCompletion(task, iso, comps);
-  if (!c) return true;
-  return c.date === iso || !!showCompleted;
+  return true;
 }
 
 /* ================= sorting ================= */
@@ -242,18 +239,55 @@ export function activityIndex(tasks, completions, startISO, endISO) {
   return index;
 }
 
-/* Set of ISO dates in startISO..endISO with at least one completion (task or
-   subtask) of a task in `areas` -- the day strip's done dots. Same rule as
-   activityIndex: completions of deleted tasks are ignored. */
+/* Map of ISO date -> area ids (colour keys: the Activity board colours its dots
+   and heatmap by area) for dates in startISO..endISO with at least one completion
+   (task or subtask) of a task in `areas` -- the day strip's / month grid's done
+   circles. The ids come in the order of the `areas` argument (stable, no
+   duplicates); a date with no completion is absent. Same rule as activityIndex:
+   completions of deleted tasks are ignored. */
 export function doneDates(tasks, completions, areas, startISO, endISO) {
-  var ok = new Set();
-  tasks.forEach(function (t) { if (areas.indexOf(t.area) !== -1) ok.add(t.id); });
-  var out = new Set();
+  var areaOf = new Map();
+  tasks.forEach(function (t) { if (areas.indexOf(t.area) !== -1) areaOf.set(t.id, t.area); });
+  var found = new Map(); /* date -> Set of area ids */
   completions.forEach(function (c) {
-    if (c.date < startISO || c.date > endISO || !ok.has(c.taskId)) return;
-    out.add(c.date);
+    if (c.date < startISO || c.date > endISO || !areaOf.has(c.taskId)) return;
+    var set = found.get(c.date);
+    if (!set) { set = new Set(); found.set(c.date, set); }
+    set.add(areaOf.get(c.taskId));
+  });
+  var out = new Map();
+  found.forEach(function (set, date) {
+    out.set(date, areas.filter(function (a, i) { return set.has(a) && areas.indexOf(a) === i; }));
   });
   return out;
+}
+
+var MONTH_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/* The month calendar behind the expanded day strip: the month containing
+   anchorISO, always 6 weeks x 7 days (so paging months never changes the grid's
+   height), starting on weekStartDow (0=Sun .. 6=Sat). Days of the neighbouring
+   months fill the gaps with inMonth:false. */
+export function monthGrid(anchorISO, weekStartDow) {
+  var a = parseISO(anchorISO);
+  var first = new Date(a.getFullYear(), a.getMonth(), 1);
+  var start = addDays(first, -((first.getDay() - weekStartDow + 7) % 7));
+  var weeks = [];
+  for (var w = 0; w < 6; w++) {
+    var row = [];
+    for (var i = 0; i < 7; i++) {
+      var d = addDays(start, w * 7 + i);
+      row.push({ date: fmtISO(d), inMonth: d.getMonth() === first.getMonth() });
+    }
+    weeks.push(row);
+  }
+  return { title: MONTH_LONG[first.getMonth()] + ' ' + first.getFullYear(), first: fmtISO(first), weeks: weeks };
+}
+
+/* ISO of the 1st of the month n months from anchorISO's month (n may be negative) */
+export function shiftMonthISO(anchorISO, n) {
+  var a = parseISO(anchorISO);
+  return fmtISO(new Date(a.getFullYear(), a.getMonth() + n, 1));
 }
 
 /* The `n` days ending at endISO (oldest first) from one row's date->count Map
